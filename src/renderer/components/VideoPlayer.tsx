@@ -3,6 +3,7 @@ import { toMediaUrl } from '../../shared/media';
 import { formatSpeed, MAX_SPEED } from '../player/speed';
 import { useHoldToBoost } from '../player/useHoldToBoost';
 import { usePositionSaver } from '../player/usePositionSaver';
+import { useStudyTimer } from '../timer/useStudyTimer';
 
 interface VideoPlayerProps {
   path: string;
@@ -45,6 +46,7 @@ export default function VideoPlayer({
   );
 
   usePositionSaver(element, path);
+  useStudyTimer(element, path);
 
   // A new load resets playbackRate to defaultPlaybackRate, so set both.
   useEffect(() => {

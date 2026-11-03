@@ -187,6 +187,35 @@ body {
   white-space: nowrap;
 }
 
+.study-clock {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-clock-item {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.study-clock-label {
+  color: var(--muted);
+}
+
+.study-clock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.study-clock[data-active='true'] .study-clock-dot {
+  background: var(--ok);
+}
+
 .player-count {
   color: var(--muted);
   font-size: 13px;

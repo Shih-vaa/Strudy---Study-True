@@ -2,6 +2,7 @@ import { app, BrowserWindow, session } from 'electron';
 import { MEDIA_SCHEME } from '../shared/media';
 import { registerIpc } from './ipc';
 import { registerMediaProtocol, registerMediaScheme } from './media';
+import { watchPower } from './power';
 import { createMainWindow, devServerUrl } from './window';
 
 app.setName('Strudy');
@@ -49,6 +50,7 @@ if (!app.requestSingleInstanceLock()) {
     blockNetworkRequests();
     registerMediaProtocol();
     registerIpc();
+    watchPower();
     createMainWindow();
   });
 }

@@ -11,5 +11,6 @@
     "noUnusedParameters": true,
     "types": ["vite/client"]
   },
-  "include": ["src/renderer/**/*", "src/shared/**/*"]
+  "include": ["src/renderer/**/*", "src/shared/**/*"],
+  "exclude": ["src/**/*.test.ts"]
 }

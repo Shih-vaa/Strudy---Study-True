@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Controls from '../components/Controls';
+import StudyClock from '../components/StudyClock';
 import VideoPlayer from '../components/VideoPlayer';
 import { restart, skip, togglePlay } from '../player/actions';
 import { baseName } from '../player/format';
@@ -45,6 +46,7 @@ export default function Player() {
         <span className="player-title" title={path}>
           {baseName(path)}
         </span>
+        <StudyClock />
         <span className="player-count">
           {index + 1} / {playlist.length}
         </span>

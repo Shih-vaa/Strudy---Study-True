@@ -1,15 +1,27 @@
 import { create } from 'zustand';
-import type { OpenDialogKind } from '../../shared/types';
+import { createSession } from '../../shared/session';
+import type { OpenDialogKind, Session } from '../../shared/types';
 import { clampSpeed, nextSpeed } from '../player/speed';
 
 type Screen = 'library' | 'player';
+
+const newSession = (): Session => createSession(crypto.randomUUID(), Date.now());
 
 interface SessionState {
   screen: Screen;
   playlist: string[];
   index: number;
-  /** The speed the user selected (hold-to-boost will be layered on top of this). */
+  /** The speed the user selected (hold-to-boost is layered on top of this). */
   speed: number;
+
+  /** The running session; created when the first video plays in this launch. */
+  session: Session | null;
+  /** Study time already recorded today by earlier sessions, in ms. */
+  todayBaseMs: number;
+  /** False while the machine sleeps or the screen is locked. */
+  systemActive: boolean;
+  /** Whether the timer is counting right now (for the clock's indicator). */
+  studying: boolean;
 
   /** Opens a picker; resolves true if a playlist was loaded. */
   openMedia: (kind: OpenDialogKind) => Promise<boolean>;
@@ -19,6 +31,13 @@ interface SessionState {
   setSpeed: (speed: number) => void;
   stepSpeed: (direction: 1 | -1) => void;
   showLibrary: () => void;
+
+  /** Starts the session if needed and records that this video played. */
+  noteVideoPlayed: (path: string) => void;
+  addStudyMs: (ms: number) => void;
+  setTodayBase: (ms: number) => void;
+  setSystemActive: (active: boolean) => void;
+  setStudying: (studying: boolean) => void;
 }
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
@@ -26,6 +45,11 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   playlist: [],
   index: 0,
   speed: 1,
+
+  session: null,
+  todayBaseMs: 0,
+  systemActive: true,
+  studying: false,
 
   openMedia: async (kind) => {
     const paths = await window.api.openMedia(kind);
@@ -55,4 +79,25 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   stepSpeed: (direction) => set({ speed: nextSpeed(get().speed, direction) }),
 
   showLibrary: () => set({ screen: 'library' }),
+
+  noteVideoPlayed: (path) =>
+    set(({ session }) => {
+      const current = session ?? newSession();
+      if (current.videosWatched.includes(path)) return session ? {} : { session: current };
+      return { session: { ...current, videosWatched: [...current.videosWatched, path] } };
+    }),
+
+  addStudyMs: (ms) =>
+    set(({ session }) => {
+      const current = session ?? newSession();
+      return { session: { ...current, studyMs: current.studyMs + ms } };
+    }),
+
+  setTodayBase: (ms) => set({ todayBaseMs: ms }),
+
+  setSystemActive: (active) => set({ systemActive: active }),
+
+  setStudying: (studying) => {
+    if (get().studying !== studying) set({ studying });
+  },
 }));

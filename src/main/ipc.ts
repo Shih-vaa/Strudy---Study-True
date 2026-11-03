@@ -7,9 +7,10 @@ import {
   type OpenDialogOptions,
 } from 'electron';
 import { VIDEO_EXTENSIONS } from '../shared/media';
+import { isSession } from '../shared/session';
 import type { AppInfo, IpcChannel, IpcInvokeMap, OpenDialogKind } from '../shared/types';
 import { grantMedia, listVideosInFolder } from './media';
-import { getPosition, setPosition } from './store';
+import { getPosition, listSessions, saveSession, setPosition } from './store';
 import { isAppUrl } from './window';
 
 type Handler<K extends IpcChannel> = (
@@ -80,4 +81,11 @@ export function registerIpc(): void {
     }
     setPosition(path, seconds);
   });
+
+  handle('sessions:save', (_event, session) => {
+    if (!isSession(session)) throw new Error('Invalid session');
+    saveSession(session);
+  });
+
+  handle('sessions:list', () => listSessions());
 }
