@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toMediaUrl } from '../../shared/media';
+import { formatSpeed, MAX_SPEED } from '../player/speed';
+import { useHoldToBoost } from '../player/useHoldToBoost';
 import { usePositionSaver } from '../player/usePositionSaver';
 
 interface VideoPlayerProps {
   path: string;
   /** Where to resume, in seconds (0 = from the start). */
   startAt: number;
+  /** The speed the user selected; hold-to-boost temporarily overrides it. */
   speed: number;
   /** Stable callback receiving the <video> element (null on unmount). */
   onElement: (video: HTMLVideoElement | null) => void;
   onEnded: () => void;
+  /** A short click on the video (a long press boosts instead). */
   onToggle: () => void;
 }
 
@@ -27,6 +31,10 @@ export default function VideoPlayer({
 }: VideoPlayerProps) {
   const [element, setElement] = useState<HTMLVideoElement | null>(null);
   const [failed, setFailed] = useState(false);
+  const { boosting, handlers } = useHoldToBoost(onToggle);
+
+  // While boosting the rate is the hard cap; otherwise exactly what the user selected.
+  const rate = boosting ? MAX_SPEED : speed;
 
   const setRef = useCallback(
     (video: HTMLVideoElement | null) => {
@@ -41,13 +49,13 @@ export default function VideoPlayer({
   // A new load resets playbackRate to defaultPlaybackRate, so set both.
   useEffect(() => {
     if (!element) return;
-    element.defaultPlaybackRate = speed;
-    element.playbackRate = speed;
-  }, [element, speed]);
+    element.defaultPlaybackRate = rate;
+    element.playbackRate = rate;
+  }, [element, rate]);
 
   const handleLoadedMetadata = (video: HTMLVideoElement) => {
-    video.defaultPlaybackRate = speed;
-    video.playbackRate = speed;
+    video.defaultPlaybackRate = rate;
+    video.playbackRate = rate;
     if (startAt > 0 && startAt < video.duration - RESUME_END_MARGIN_SECONDS) {
       video.currentTime = startAt;
     }
@@ -63,8 +71,13 @@ export default function VideoPlayer({
         onLoadedMetadata={(e) => handleLoadedMetadata(e.currentTarget)}
         onEnded={onEnded}
         onError={() => setFailed(true)}
-        onClick={onToggle}
+        {...handlers}
       />
+      {boosting && (
+        <div className="boost-badge" role="status" aria-label="Boosting to maximum speed">
+          {formatSpeed(MAX_SPEED)}
+        </div>
+      )}
       {failed && (
         <div className="video-message" role="alert">
           <p>
