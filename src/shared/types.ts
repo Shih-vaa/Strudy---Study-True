@@ -53,9 +53,10 @@ export type IpcChannel = keyof IpcInvokeMap;
 
 /**
  * Events pushed from main to the renderer. power:suspend means the machine is asleep or
- * the screen is locked; power:resume means it is neither.
+ * the screen is locked; power:resume means it is neither. window:blur / window:focus mirror
+ * the BrowserWindow losing and regaining focus.
  */
-export type IpcEventChannel = 'power:suspend' | 'power:resume';
+export type IpcEventChannel = 'power:suspend' | 'power:resume' | 'window:blur' | 'window:focus';
 
 /** The API exposed to the renderer as `window.api`. */
 export interface StrudyApi {

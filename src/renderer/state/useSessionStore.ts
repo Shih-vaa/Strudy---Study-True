@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createSession } from '../../shared/session';
 import type { OpenDialogKind, Session } from '../../shared/types';
+import { recordFocusLost, recordFocusReturned, type FocusLoss } from '../focus/focusLoss';
 import { clampSpeed, nextSpeed } from '../player/speed';
 
 type Screen = 'library' | 'player';
@@ -22,6 +23,8 @@ interface SessionState {
   systemActive: boolean;
   /** Whether the timer is counting right now (for the clock's indicator). */
   studying: boolean;
+  /** Set from the moment the window loses focus until the user dismisses "Come back to study". */
+  focusLoss: FocusLoss | null;
 
   /** Opens a picker; resolves true if a playlist was loaded. */
   openMedia: (kind: OpenDialogKind) => Promise<boolean>;
@@ -38,6 +41,11 @@ interface SessionState {
   setTodayBase: (ms: number) => void;
   setSystemActive: (active: boolean) => void;
   setStudying: (studying: boolean) => void;
+
+  /** The window lost focus: count it, log it, and start waiting for an acknowledgement. */
+  focusLost: (at: number) => void;
+  focusReturned: (at: number) => void;
+  dismissFocusLoss: () => void;
 }
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
@@ -50,6 +58,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   todayBaseMs: 0,
   systemActive: true,
   studying: false,
+  focusLoss: null,
 
   openMedia: async (kind) => {
     const paths = await window.api.openMedia(kind);
@@ -100,4 +109,27 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   setStudying: (studying) => {
     if (get().studying !== studying) set({ studying });
   },
+
+  focusLost: (at) =>
+    set(({ session, focusLoss }) => {
+      // Repeated blur events within one absence are one loss. Leaving again after coming back
+      // (even before dismissing the overlay) is a new one.
+      if (focusLoss && focusLoss.returnedAt === null) return {};
+      return {
+        focusLoss: { lostAt: at, returnedAt: null },
+        session: recordFocusLost(session ?? newSession(), at),
+      };
+    }),
+
+  focusReturned: (at) =>
+    set(({ session, focusLoss }) => {
+      if (!focusLoss || focusLoss.returnedAt !== null) return {};
+      const returned: FocusLoss = { ...focusLoss, returnedAt: at };
+      return {
+        focusLoss: returned,
+        session: session ? recordFocusReturned(session, returned) : session,
+      };
+    }),
+
+  dismissFocusLoss: () => set({ focusLoss: null }),
 }));

@@ -9,6 +9,7 @@ import {
 import { VIDEO_EXTENSIONS } from '../shared/media';
 import { isSession } from '../shared/session';
 import type { AppInfo, IpcChannel, IpcInvokeMap, OpenDialogKind } from '../shared/types';
+import { suspendFocusLock } from './focusLock';
 import { grantMedia, listVideosInFolder } from './media';
 import { getPosition, listSessions, saveSession, setPosition } from './store';
 import { isAppUrl } from './window';
@@ -43,9 +44,16 @@ async function openMediaDialog(event: IpcMainInvokeEvent, kind: OpenDialogKind):
           filters: [{ name: 'Video', extensions: VIDEO_EXTENSIONS.map((ext) => ext.slice(1)) }],
         };
   const parent = BrowserWindow.fromWebContents(event.sender);
-  const result = parent
-    ? await dialog.showOpenDialog(parent, options)
-    : await dialog.showOpenDialog(options);
+  // Our own dialog takes focus; do not fight it by pulling the window back to the front.
+  const resumeFocusLock = suspendFocusLock();
+  let result: Electron.OpenDialogReturnValue;
+  try {
+    result = parent
+      ? await dialog.showOpenDialog(parent, options)
+      : await dialog.showOpenDialog(options);
+  } finally {
+    resumeFocusLock();
+  }
 
   const [picked] = result.filePaths;
   if (result.canceled || picked === undefined) return [];

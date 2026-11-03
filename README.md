@@ -2,7 +2,7 @@
 
 A focused desktop player for lecture videos stored on your computer. Strudy tracks **real** study time: a second only counts while you are actually watching, and anything that looks like not studying (paused, window unfocused, minimized, computer asleep) stops the clock.
 
-> **Status: work in progress.** Milestones 1–4 of 10 are done: the player, hold-to-boost and the study timer. The focus lock, password exit, kiosk mode, presence checks, reports and installers are still to come. See the [roadmap](#roadmap).
+> **Status: work in progress.** Milestones 1–5 of 10 are done: the player, hold-to-boost, the study timer and focus handling. The password exit, kiosk mode, presence checks, reports and installers are still to come. See the [roadmap](#roadmap).
 
 ## Why it exists
 
@@ -44,9 +44,20 @@ It counts **wall-clock** seconds, so playback speed never changes it (1 real sec
 
 Gaps longer than 2.5 s between ticks (sleep, throttling) are discarded rather than credited. Pauses and focus changes are accounted for at the moment they happen, not rounded to the next second.
 
+### Focus handling
+
+When you leave Strudy while a lecture is open (switching apps, clicking another window, minimizing):
+
+1. The video **pauses** and the study clock stops.
+2. A `focus_lost` event is **logged** with its time, and when you come back it is completed with how long you were away (for example `away 42s`).
+3. Strudy tries to **take focus back** about a quarter of a second later.
+4. A **"Come back to study"** screen covers the window, with how long you were away. Nothing plays or responds behind it until you press **Resume studying** (click, `Enter` or `Space`). The video resumes only if it was playing when you left; a video you had paused yourself stays paused.
+
+Leaving again before you dismiss the screen counts as a new loss. Leaving Strudy while on the library (no lecture open) is not counted. The window does not fight Strudy's own file-open dialog.
+
 ### Sessions
 
-A session starts when the first video plays after launch. The running session is saved every 10 seconds and when you leave the player, so a hard power-off still keeps everything up to the last save. A session that never ended cleanly keeps `endedAt: null`, which makes an abrupt stop visible. **Today** adds up every session that started today.
+A session starts when the first video plays after launch. The running session is saved every 10 seconds, when you leave the player, and straight away when something is logged, so a hard power-off still keeps everything up to the last save. A session that never ended cleanly keeps `endedAt: null`, which makes an abrupt stop visible. **Today** adds up every session that started today.
 
 ## Getting started
 
@@ -69,6 +80,8 @@ The first run downloads the Electron binary, so it needs internet once. If that 
 | `npm test` | Run the unit tests (Vitest) |
 | `npm run typecheck` | Type-check main, renderer and tests |
 
+While developing, `STRUDY_FOCUS_LOCK=0 npm run dev` stops Strudy from pulling itself back to the front when you switch to another app. Pausing, logging and the overlay still work.
+
 ## Privacy and data
 
 - **Local only.** There are no network calls. The renderer runs under a strict Content Security Policy (`connect-src 'none'`), and the main process cancels any request that is not local.
@@ -79,6 +92,7 @@ The first run downloads the Electron binary, so it needs internet once. If that 
 ## Known limitations
 
 - Strudy is a **deterrent and a logger**, not security. Even once the lock is built, anyone can still shut the lid or power off. The log is what makes that visible.
+- Taking focus back is best effort. Until kiosk mode is built, `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.
 - Chromium pauses video that has no audio track when the window is hidden. Normal lectures have audio, so this mostly shows up with silent test clips.
@@ -92,7 +106,7 @@ The first run downloads the Electron binary, so it needs internet once. If that 
 | 2 | Player: open file/folder, custom protocol, seek, speed, resume | Done |
 | 3 | Hold-to-boost (250 ms threshold) | Done |
 | 4 | Study timer, unit tests, on-screen clock | Done |
-| 5 | Focus handling: pause on blur, overlay, log | Planned |
+| 5 | Focus handling: pause on blur, overlay, log | Done |
 | 6 | Exit password, hashed storage, close interception | Planned |
 | 7 | Kiosk mode and shortcut blocking (macOS first, then Windows) | Planned |
 | 8 | "Still studying?" presence checks | Planned |
@@ -105,13 +119,14 @@ The first run downloads the Electron binary, so it needs internet once. If that 
 
 ```
 src/
-  main/       Electron main process: window, IPC, media protocol, storage, power events
+  main/       Electron main process: window, IPC, media protocol, storage, power and focus events
   preload/    The small typed API exposed to the UI (contextBridge)
   shared/     Types and helpers used by both sides
   renderer/   React UI
     screens/    Library, Player
-    components/ Video player, controls, study clock
+    components/ Video player, controls, study clock, focus overlay
     player/     Playback hooks, speed, hold-to-boost gesture
+    focus/      Focus-loss logging logic and the pause/overlay hook
     timer/      Study timer (pure logic), clock helpers, session persistence
     state/      Zustand store
 scripts/      Dev runner

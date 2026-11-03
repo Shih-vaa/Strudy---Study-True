@@ -9,6 +9,8 @@ export function usePlayerShortcuts(video: HTMLVideoElement | null): void {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      // "Come back to study" is up: its button takes the keys (Enter/Space), not the player.
+      if (useSessionStore.getState().focusLoss) return;
 
       let handled = true;
       switch (event.key.toLowerCase()) {
@@ -42,6 +44,7 @@ export function usePlayerShortcuts(video: HTMLVideoElement | null): void {
 
     // Space "clicks" a focused button on keyup in some engines; swallow it.
     const onKeyUp = (event: KeyboardEvent) => {
+      if (useSessionStore.getState().focusLoss) return;
       if (event.key === ' ') event.preventDefault();
     };
 

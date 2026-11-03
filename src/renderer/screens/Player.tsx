@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import Controls from '../components/Controls';
+import FocusOverlay from '../components/FocusOverlay';
 import StudyClock from '../components/StudyClock';
 import VideoPlayer from '../components/VideoPlayer';
+import { useFocusLock } from '../focus/useFocusLock';
 import { restart, skip, togglePlay } from '../player/actions';
 import { baseName } from '../player/format';
 import { usePlayback } from '../player/usePlayback';
@@ -34,6 +36,7 @@ export default function Player() {
 
   const playback = usePlayback(video);
   usePlayerShortcuts(video);
+  const focus = useFocusLock(video);
 
   const ready = video !== null;
 
@@ -82,6 +85,8 @@ export default function Player() {
         onNext={next}
         onSpeedChange={setSpeed}
       />
+
+      {focus.overlayVisible && <FocusOverlay awaySeconds={focus.awaySeconds} onDismiss={focus.dismiss} />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 export const SKIP_SECONDS = 10;
 
-function play(video: HTMLVideoElement): void {
+export function play(video: HTMLVideoElement): void {
   // play() rejects if interrupted by a pause or a new load; that is not an error here.
   video.play().catch(() => undefined);
 }

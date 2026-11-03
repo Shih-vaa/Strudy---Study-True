@@ -30,7 +30,8 @@ export function useSessionPersistence(): void {
     const interval = window.setInterval(save, AUTOSAVE_MS);
     window.addEventListener('pagehide', save);
     const unsubscribe = useSessionStore.subscribe((state, prev) => {
-      if (state.screen !== prev.screen) save();
+      // Events (like a focus loss) are saved right away, not at the next autosave.
+      if (state.screen !== prev.screen || state.session?.events !== prev.session?.events) save();
     });
 
     return () => {

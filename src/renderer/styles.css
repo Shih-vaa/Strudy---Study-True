@@ -254,6 +254,36 @@ body {
   pointer-events: none;
 }
 
+.focus-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(15, 17, 21, 0.97);
+  text-align: center;
+}
+
+.focus-overlay h2 {
+  margin: 0;
+  font-size: 40px;
+  letter-spacing: -0.02em;
+}
+
+.focus-overlay p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.focus-overlay .btn {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
 .video-message {
   position: absolute;
   inset: 0;

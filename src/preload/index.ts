@@ -3,7 +3,12 @@ import type { IpcChannel, IpcEventChannel, IpcInvokeMap, StrudyApi } from '../sh
 
 // Sandboxed preload: import only 'electron' at runtime, and shared *types* only.
 
-const EVENT_CHANNELS: readonly IpcEventChannel[] = ['power:suspend', 'power:resume'];
+const EVENT_CHANNELS: readonly IpcEventChannel[] = [
+  'power:suspend',
+  'power:resume',
+  'window:blur',
+  'window:focus',
+];
 
 function invoke<K extends IpcChannel>(
   channel: K,

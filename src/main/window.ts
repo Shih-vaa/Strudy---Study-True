@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { watchFocus } from './focusLock';
 
 const RENDERER_INDEX = join(__dirname, '../renderer/index.html');
 
@@ -31,6 +32,7 @@ export function createMainWindow(): BrowserWindow {
   });
 
   win.once('ready-to-show', () => win.show());
+  watchFocus(win);
 
   // The UI is a single page: never open new windows or navigate away from it.
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
