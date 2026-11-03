@@ -1,10 +1,14 @@
 import Store from 'electron-store';
+import { upsertSession } from '../shared/session';
 import type { Session } from '../shared/types';
+import { isStoredPasswordHash, type StoredPasswordHash } from './password';
 
 interface StoreSchema {
   /** Resume position in seconds, keyed by absolute file path. */
   positions: Record<string, number>;
   sessions: Session[];
+  /** The exit password's scrypt hash; null until first-run setup. */
+  auth: StoredPasswordHash | null;
 }
 
 /** Positions under this are treated as "not started" and not kept. */
@@ -16,7 +20,7 @@ let store: Store<StoreSchema> | null = null;
 function getStore(): Store<StoreSchema> {
   store ??= new Store<StoreSchema>({
     name: 'strudy',
-    defaults: { positions: {}, sessions: [] },
+    defaults: { positions: {}, sessions: [], auth: null },
   });
   return store;
 }
@@ -37,15 +41,21 @@ export function setPosition(path: string, seconds: number): void {
   getStore().set('positions', positions);
 }
 
+/** The stored password hash, or null if none is set (or the stored value is unusable). */
+export function getPasswordHash(): StoredPasswordHash | null {
+  const stored = getStore().get('auth');
+  return isStoredPasswordHash(stored) ? stored : null;
+}
+
+export function setPasswordHash(hash: StoredPasswordHash): void {
+  getStore().set('auth', hash);
+}
+
 export function listSessions(): Session[] {
   return getStore().get('sessions');
 }
 
 /** Insert, or replace the stored session with the same id (sessions autosave repeatedly). */
 export function saveSession(session: Session): void {
-  const sessions = [...getStore().get('sessions')];
-  const index = sessions.findIndex((existing) => existing.id === session.id);
-  if (index === -1) sessions.push(session);
-  else sessions[index] = session;
-  getStore().set('sessions', sessions);
+  getStore().set('sessions', upsertSession(getStore().get('sessions'), session));
 }

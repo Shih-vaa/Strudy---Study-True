@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useSessionStore } from '../state/useSessionStore';
+import { isModalOpen, useSessionStore } from '../state/useSessionStore';
 import { restart, SKIP_SECONDS, skip, togglePlay } from './actions';
 
 /** Space = play/pause, Left/Right = -/+10s, Up/Down = speed step, R = replay. */
@@ -9,8 +9,9 @@ export function usePlayerShortcuts(video: HTMLVideoElement | null): void {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      // "Come back to study" is up: its button takes the keys (Enter/Space), not the player.
-      if (useSessionStore.getState().focusLoss) return;
+      // "Come back to study" or the exit dialog is up: they take the keys (typing a password
+      // must not pause or replay the video), not the player.
+      if (isModalOpen(useSessionStore.getState())) return;
 
       let handled = true;
       switch (event.key.toLowerCase()) {
@@ -44,7 +45,7 @@ export function usePlayerShortcuts(video: HTMLVideoElement | null): void {
 
     // Space "clicks" a focused button on keyup in some engines; swallow it.
     const onKeyUp = (event: KeyboardEvent) => {
-      if (useSessionStore.getState().focusLoss) return;
+      if (isModalOpen(useSessionStore.getState())) return;
       if (event.key === ' ') event.preventDefault();
     };
 

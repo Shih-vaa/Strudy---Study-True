@@ -9,6 +9,7 @@ import {
 import { VIDEO_EXTENSIONS } from '../shared/media';
 import { isSession } from '../shared/session';
 import type { AppInfo, IpcChannel, IpcInvokeMap, OpenDialogKind } from '../shared/types';
+import { isPasswordSet, setupPassword, verifyAndQuit } from './auth';
 import { suspendFocusLock } from './focusLock';
 import { grantMedia, listVideosInFolder } from './media';
 import { getPosition, listSessions, saveSession, setPosition } from './store';
@@ -96,4 +97,8 @@ export function registerIpc(): void {
   });
 
   handle('sessions:list', () => listSessions());
+
+  handle('auth:isSetup', () => isPasswordSet());
+  handle('auth:setup', (_event, password) => setupPassword(password));
+  handle('auth:verifyAndQuit', (_event, password, session) => verifyAndQuit(password, session));
 }

@@ -17,6 +17,24 @@ export function createSession(id: string, startedAt: number): Session {
   };
 }
 
+/**
+ * Inserts the session, or replaces the stored one with the same id (sessions autosave over
+ * and over). A session that has ended stays ended: a stale, still-open copy, such as an
+ * autosave landing while the app is closing, never reopens it.
+ */
+export function upsertSession(sessions: readonly Session[], incoming: Session): Session[] {
+  const index = sessions.findIndex((s) => s.id === incoming.id);
+  if (index === -1) return [...sessions, incoming];
+  const existing = sessions[index];
+  if (existing && existing.endedAt !== null && incoming.endedAt === null) return [...sessions];
+  return sessions.map((s, i) => (i === index ? incoming : s));
+}
+
+/** Logs a wrong exit-password attempt. */
+export function recordAuthFailed(session: Session, at: number): Session {
+  return { ...session, events: [...session.events, { type: 'auth_failed', timestamp: at }] };
+}
+
 const isTime = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0;
 

@@ -7,6 +7,7 @@ export default function Library() {
   const playlist = useSessionStore((s) => s.playlist);
   const openMedia = useSessionStore((s) => s.openMedia);
   const playAt = useSessionStore((s) => s.playAt);
+  const openExitDialog = useSessionStore((s) => s.openExitDialog);
 
   const [notice, setNotice] = useState<string | null>(null);
   const [positions, setPositions] = useState<Record<string, number>>({});
@@ -39,9 +40,14 @@ export default function Library() {
 
   return (
     <main className="library">
-      <header>
-        <h1>Strudy</h1>
-        <p className="tagline">True Study. A focused lecture player.</p>
+      <header className="library-header">
+        <div>
+          <h1>Strudy</h1>
+          <p className="tagline">True Study. A focused lecture player.</p>
+        </div>
+        <button className="btn" onClick={openExitDialog}>
+          Exit
+        </button>
       </header>
 
       <div className="open-actions">

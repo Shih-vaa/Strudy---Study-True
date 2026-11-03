@@ -23,7 +23,12 @@ delete env.ELECTRON_RUN_AS_NODE;
 const electron = spawn(electronPath, ['.', ...process.argv.slice(2)], { stdio: 'inherit', env });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.on(signal, () => electron.kill());
+  process.on(signal, () => {
+    electron.kill();
+    // Electron answers a plain signal by trying to close its window, and Strudy's exit lock
+    // refuses that, so do not wait on it: Ctrl+C must always stop `npm run dev`.
+    setTimeout(() => electron.kill('SIGKILL'), 2000).unref();
+  });
 }
 
 electron.on('exit', async (code) => {

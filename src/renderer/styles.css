@@ -70,6 +70,103 @@ body {
   padding: 56px 32px 24px;
 }
 
+.app-root {
+  height: 100%;
+}
+
+.library-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.setup {
+  display: grid;
+  min-height: 100%;
+  padding: 32px;
+  place-items: center;
+}
+
+.setup-card,
+.password-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(420px, 100%);
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.setup-card h1,
+.password-dialog h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+.setup-lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field-hint {
+  margin: -6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.setup-card input,
+.password-dialog input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.setup-card input:focus,
+.password-dialog input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--bad);
+  font-size: 14px;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+  background: rgba(15, 17, 21, 0.85);
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .library h1 {
   margin: 0;
   font-size: 48px;

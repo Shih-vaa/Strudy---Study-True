@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { registerExitFlush } from '../state/exitFlush';
 
 const SAVE_INTERVAL_MS = 5000;
 
@@ -17,18 +18,18 @@ export function usePositionSaver(video: HTMLVideoElement | null, path: string): 
     let latest: number | null = null;
     let lastSavedAt = 0;
 
-    const flush = () => {
-      if (latest === null) return;
+    const flush = (): Promise<void> => {
+      if (latest === null) return Promise.resolve();
       // Read `ended` from the element, not from an event: React's own onEnded can
       // unmount us before an 'ended' listener of ours would run.
-      void window.api.setPosition(path, video.ended ? 0 : latest);
+      return window.api.setPosition(path, video.ended ? 0 : latest);
     };
 
     const onTimeUpdate = () => {
       latest = video.currentTime;
       if (performance.now() - lastSavedAt >= SAVE_INTERVAL_MS) {
         lastSavedAt = performance.now();
-        flush();
+        void flush();
       }
     };
     // While a seek is in flight currentTime is already the target, so leaving or
@@ -38,24 +39,31 @@ export function usePositionSaver(video: HTMLVideoElement | null, path: string): 
     };
     const onPause = () => {
       latest = video.currentTime;
-      flush();
+      void flush();
     };
+    const onEnded = () => void flush();
+    const onPageHide = () => void flush();
 
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('seeking', onSeek);
     video.addEventListener('seeked', onSeek);
     video.addEventListener('pause', onPause);
-    video.addEventListener('ended', flush);
-    window.addEventListener('pagehide', flush);
+    video.addEventListener('ended', onEnded);
+    window.addEventListener('pagehide', onPageHide);
+    const unregisterExitFlush = registerExitFlush(() => {
+      latest = video.currentTime;
+      return flush();
+    });
 
     return () => {
+      unregisterExitFlush();
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('seeking', onSeek);
       video.removeEventListener('seeked', onSeek);
       video.removeEventListener('pause', onPause);
-      video.removeEventListener('ended', flush);
-      window.removeEventListener('pagehide', flush);
-      flush();
+      video.removeEventListener('ended', onEnded);
+      window.removeEventListener('pagehide', onPageHide);
+      void flush();
     };
   }, [video, path]);
 }

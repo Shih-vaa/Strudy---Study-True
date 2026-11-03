@@ -2,7 +2,7 @@
 
 A focused desktop player for lecture videos stored on your computer. Strudy tracks **real** study time: a second only counts while you are actually watching, and anything that looks like not studying (paused, window unfocused, minimized, computer asleep) stops the clock.
 
-> **Status: work in progress.** Milestones 1–5 of 10 are done: the player, hold-to-boost, the study timer and focus handling. The password exit, kiosk mode, presence checks, reports and installers are still to come. See the [roadmap](#roadmap).
+> **Status: work in progress.** Milestones 1–6 of 10 are done: the player, hold-to-boost, the study timer, focus handling and the exit password. Kiosk mode, presence checks, reports and installers are still to come. See the [roadmap](#roadmap).
 
 ## Why it exists
 
@@ -55,6 +55,19 @@ When you leave Strudy while a lecture is open (switching apps, clicking another 
 
 Leaving again before you dismiss the screen counts as a new loss. Leaving Strudy while on the library (no lecture open) is not counted. The window does not fight Strudy's own file-open dialog.
 
+### Exit password
+
+On first run Strudy asks you to create an **exit password** (at least 6 characters, entered twice). After that the app cannot be closed without it:
+
+- The window's close button, `Cmd+W`, `Cmd+Q` and `Alt+F4` are all blocked. Instead of closing, they open an **Exit** dialog (the **Exit** button in the top bar opens the same one).
+- The password is checked in the **main process only**, against a salted **scrypt** hash. The password itself is never stored.
+- A wrong password does nothing except get **logged** as an `auth_failed` event on the running session.
+- The right password **ends and saves the session first** (it gets an `endedAt` time), saves the resume position, then quits.
+- Shutting down, restarting or logging out is never blocked.
+- Until a password exists there is nothing to ask for, so a half-set-up app can always be closed.
+
+There is no way to change or recover the password in this version.
+
 ### Sessions
 
 A session starts when the first video plays after launch. The running session is saved every 10 seconds, when you leave the player, and straight away when something is logged, so a hard power-off still keeps everything up to the last save. A session that never ended cleanly keeps `endedAt: null`, which makes an abrupt stop visible. **Today** adds up every session that started today.
@@ -80,18 +93,27 @@ The first run downloads the Electron binary, so it needs internet once. If that 
 | `npm test` | Run the unit tests (Vitest) |
 | `npm run typecheck` | Type-check main, renderer and tests |
 
-While developing, `STRUDY_FOCUS_LOCK=0 npm run dev` stops Strudy from pulling itself back to the front when you switch to another app. Pausing, logging and the overlay still work.
+While developing you will not want the locks in your way. These switches work only when running from source and are **ignored in packaged builds**:
+
+```bash
+STRUDY_FOCUS_LOCK=0 npm run dev   # stop Strudy pulling itself back to the front (pausing, logging and the overlay still work)
+STRUDY_EXIT_LOCK=0 npm run dev    # let the window close without the password
+```
+
+`Ctrl+C` in the terminal always stops `npm run dev` (it force-quits Strudy if the window has not closed after two seconds).
 
 ## Privacy and data
 
 - **Local only.** There are no network calls. The renderer runs under a strict Content Security Policy (`connect-src 'none'`), and the main process cancels any request that is not local.
-- **What is stored:** resume positions and session records (start time, study time, the list of videos watched). Nothing else.
+- **What is stored:** resume positions, session records (start and end time, study time, the videos watched, focus losses and wrong-password attempts) and a scrypt hash of the exit password. Nothing else.
 - **Where:** `strudy.json` in the app data folder: `~/Library/Application Support/Strudy` on macOS, `%APPDATA%\Strudy` on Windows. Delete the file to erase everything.
 - **Local files:** videos are served through a private `strudy-media://` protocol, and only files you picked in the open dialog this launch. `webSecurity` stays on.
 
 ## Known limitations
 
-- Strudy is a **deterrent and a logger**, not security. Even once the lock is built, anyone can still shut the lid or power off. The log is what makes that visible.
+- Strudy is a **deterrent and a logger**, not security. Anyone can still shut the lid, power off, Force Quit it (`Cmd+Option+Esc` on macOS, Task Manager on Windows), or delete `strudy.json`. The log is what makes that visible: a session that never ended has no `endedAt`.
+- A plain `kill` (SIGTERM) does not close a locked Strudy either, because Electron answers it by closing the window and the lock refuses. Use Force Quit or `kill -9`.
+- **Forgot the password?** Quit Strudy by Force Quit, then delete the `auth` entry in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password.
 - Taking focus back is best effort. Until kiosk mode is built, `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.
@@ -107,7 +129,7 @@ While developing, `STRUDY_FOCUS_LOCK=0 npm run dev` stops Strudy from pulling it
 | 3 | Hold-to-boost (250 ms threshold) | Done |
 | 4 | Study timer, unit tests, on-screen clock | Done |
 | 5 | Focus handling: pause on blur, overlay, log | Done |
-| 6 | Exit password, hashed storage, close interception | Planned |
+| 6 | Exit password, hashed storage, close interception | Done |
 | 7 | Kiosk mode and shortcut blocking (macOS first, then Windows) | Planned |
 | 8 | "Still studying?" presence checks | Planned |
 | 9 | Session summary, 7-day chart, CSV export | Planned |
@@ -119,7 +141,7 @@ While developing, `STRUDY_FOCUS_LOCK=0 npm run dev` stops Strudy from pulling it
 
 ```
 src/
-  main/       Electron main process: window, IPC, media protocol, storage, power and focus events
+  main/       Electron main process: window, IPC, media protocol, storage, exit password, power and focus events
   preload/    The small typed API exposed to the UI (contextBridge)
   shared/     Types and helpers used by both sides
   renderer/   React UI

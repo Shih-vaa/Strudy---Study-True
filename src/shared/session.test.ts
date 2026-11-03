@@ -1,5 +1,57 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, isSession } from './session';
+import { createSession, isSession, recordAuthFailed, upsertSession } from './session';
+
+describe('upsertSession', () => {
+  const open = (id: string, studyMs = 0) => ({ ...createSession(id, 1_000), studyMs });
+  const ended = (id: string, studyMs: number) => ({ ...open(id, studyMs), endedAt: 9_000 });
+
+  it('adds a session it has not seen', () => {
+    expect(upsertSession([open('a')], open('b')).map((s) => s.id)).toEqual(['a', 'b']);
+  });
+
+  it('replaces the session with the same id, keeping its place', () => {
+    const next = upsertSession([open('a', 1), open('b', 2), open('c', 3)], open('b', 50));
+    expect(next.map((s) => [s.id, s.studyMs])).toEqual([['a', 1], ['b', 50], ['c', 3]]);
+  });
+
+  it('lets a session end', () => {
+    const next = upsertSession([open('a', 1)], ended('a', 5));
+    expect(next[0]).toMatchObject({ endedAt: 9_000, studyMs: 5 });
+  });
+
+  it('keeps an ended session ended when a late, still-open copy arrives', () => {
+    const next = upsertSession([ended('a', 5)], open('a', 6));
+    expect(next[0]).toMatchObject({ endedAt: 9_000, studyMs: 5 });
+  });
+
+  it('still accepts a newer ended copy', () => {
+    const next = upsertSession([ended('a', 5)], ended('a', 7));
+    expect(next[0]?.studyMs).toBe(7);
+  });
+
+  it('does not mutate its input', () => {
+    const before = [open('a', 1)];
+    upsertSession(before, open('a', 99));
+    expect(before[0]?.studyMs).toBe(1);
+    expect(before).toHaveLength(1);
+  });
+});
+
+describe('recordAuthFailed', () => {
+  it('logs an auth_failed event with its timestamp and changes nothing else', () => {
+    const before = { ...createSession('s', 1), studyMs: 500 };
+    const after = recordAuthFailed(before, 9_000);
+    expect(after.events).toEqual([{ type: 'auth_failed', timestamp: 9_000 }]);
+    expect(after).toMatchObject({ id: 's', studyMs: 500, focusLostCount: 0 });
+    expect(before.events).toEqual([]);
+  });
+
+  it('keeps earlier events and stays valid', () => {
+    const twice = recordAuthFailed(recordAuthFailed(createSession('s', 1), 2_000), 3_000);
+    expect(twice.events.map((e) => e.timestamp)).toEqual([2_000, 3_000]);
+    expect(isSession(twice)).toBe(true);
+  });
+});
 
 describe('createSession', () => {
   it('starts empty and unfinished', () => {

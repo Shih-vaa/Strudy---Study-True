@@ -18,6 +18,7 @@ export default function Player() {
   const previous = useSessionStore((s) => s.previous);
   const setSpeed = useSessionStore((s) => s.setSpeed);
   const showLibrary = useSessionStore((s) => s.showLibrary);
+  const openExitDialog = useSessionStore((s) => s.openExitDialog);
 
   const path = playlist[index];
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
@@ -53,6 +54,9 @@ export default function Player() {
         <span className="player-count">
           {index + 1} / {playlist.length}
         </span>
+        <button className="btn" onClick={openExitDialog}>
+          Exit
+        </button>
       </header>
 
       <div className="player-stage">

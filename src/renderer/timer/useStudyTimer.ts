@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { registerExitFlush } from '../state/exitFlush';
 import { useSessionStore } from '../state/useSessionStore';
 import { createStudyTimer, intersect, isStudying, TICK_MS, type StudyConditions } from './studyTimer';
 
@@ -79,8 +80,11 @@ export function useStudyTimer(video: HTMLVideoElement | null, path: string): voi
     const unsubscribe = useSessionStore.subscribe((state, prev) => {
       if (state.systemActive !== prev.systemActive) onChange();
     });
+    // Before exiting, bank the part of the current second that has not been ticked yet.
+    const unregisterExitFlush = registerExitFlush(onChange);
 
     return () => {
+      unregisterExitFlush();
       window.clearInterval(interval);
       for (const name of VIDEO_EVENTS) video.removeEventListener(name, onChange);
       video.removeEventListener('playing', onPlaying);

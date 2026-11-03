@@ -1,9 +1,6 @@
-import { BrowserWindow, powerMonitor } from 'electron';
-import type { IpcEventChannel } from '../shared/types';
-
-function broadcast(channel: IpcEventChannel): void {
-  for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel);
-}
+import { powerMonitor } from 'electron';
+import { broadcast } from './events';
+import { allowQuit } from './quitGate';
 
 /**
  * Tells the renderer when the machine goes to sleep or the screen locks (power:suspend)
@@ -38,4 +35,7 @@ export function watchPower(): void {
     locked = false;
     update();
   });
+
+  // Never stand in the way of the system shutting down or restarting.
+  powerMonitor.on('shutdown', allowQuit);
 }

@@ -8,6 +8,7 @@ const EVENT_CHANNELS: readonly IpcEventChannel[] = [
   'power:resume',
   'window:blur',
   'window:focus',
+  'app:exit-requested',
 ];
 
 function invoke<K extends IpcChannel>(
@@ -24,6 +25,9 @@ const api: StrudyApi = {
   setPosition: (path, seconds) => invoke('positions:set', path, seconds),
   saveSession: (session) => invoke('sessions:save', session),
   listSessions: () => invoke('sessions:list'),
+  isPasswordSet: () => invoke('auth:isSetup'),
+  setPassword: (password) => invoke('auth:setup', password),
+  verifyAndQuit: (password, session) => invoke('auth:verifyAndQuit', password, session),
   onEvent: (channel, callback) => {
     if (!EVENT_CHANNELS.includes(channel)) throw new Error(`Unknown event channel: ${channel}`);
     const listener = (): void => callback();

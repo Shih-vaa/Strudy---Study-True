@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { createSession } from '../../shared/session';
+import { createSession, recordAuthFailed } from '../../shared/session';
 import type { OpenDialogKind, Session } from '../../shared/types';
 import { recordFocusLost, recordFocusReturned, type FocusLoss } from '../focus/focusLoss';
 import { clampSpeed, nextSpeed } from '../player/speed';
@@ -7,6 +7,10 @@ import { clampSpeed, nextSpeed } from '../player/speed';
 type Screen = 'library' | 'player';
 
 const newSession = (): Session => createSession(crypto.randomUUID(), Date.now());
+
+/** A dialog or overlay is up, so the player's keyboard shortcuts must stay quiet. */
+export const isModalOpen = (state: Pick<SessionState, 'focusLoss' | 'exitDialogOpen'>): boolean =>
+  state.focusLoss !== null || state.exitDialogOpen;
 
 interface SessionState {
   screen: Screen;
@@ -25,6 +29,8 @@ interface SessionState {
   studying: boolean;
   /** Set from the moment the window loses focus until the user dismisses "Come back to study". */
   focusLoss: FocusLoss | null;
+  /** The "enter the exit password" dialog is open. */
+  exitDialogOpen: boolean;
 
   /** Opens a picker; resolves true if a playlist was loaded. */
   openMedia: (kind: OpenDialogKind) => Promise<boolean>;
@@ -46,6 +52,11 @@ interface SessionState {
   focusLost: (at: number) => void;
   focusReturned: (at: number) => void;
   dismissFocusLoss: () => void;
+
+  openExitDialog: () => void;
+  closeExitDialog: () => void;
+  /** A wrong exit password was entered: log it on the running session. */
+  logAuthFailure: (at: number) => void;
 }
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
@@ -59,6 +70,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   systemActive: true,
   studying: false,
   focusLoss: null,
+  exitDialogOpen: false,
 
   openMedia: async (kind) => {
     const paths = await window.api.openMedia(kind);
@@ -132,4 +144,10 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     }),
 
   dismissFocusLoss: () => set({ focusLoss: null }),
+
+  openExitDialog: () => set({ exitDialogOpen: true }),
+  closeExitDialog: () => set({ exitDialogOpen: false }),
+
+  logAuthFailure: (at) =>
+    set(({ session }) => ({ session: recordAuthFailed(session ?? newSession(), at) })),
 }));
