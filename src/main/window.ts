@@ -7,7 +7,8 @@ const RENDERER_INDEX = join(__dirname, '../renderer/index.html');
 /** Set by scripts/dev.mjs; absent in a built/packaged app. */
 export const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
-function isAppUrl(url: string): boolean {
+/** True for the renderer's own page (dev server origin, or the built index.html). */
+export function isAppUrl(url: string): boolean {
   if (devServerUrl) return new URL(url).origin === new URL(devServerUrl).origin;
   return url.startsWith(pathToFileURL(RENDERER_INDEX).href);
 }

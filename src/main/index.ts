@@ -1,10 +1,15 @@
 import { app, BrowserWindow, session } from 'electron';
+import { MEDIA_SCHEME } from '../shared/media';
 import { registerIpc } from './ipc';
+import { registerMediaProtocol, registerMediaScheme } from './media';
 import { createMainWindow, devServerUrl } from './window';
 
 app.setName('Strudy');
 
-const LOCAL_PROTOCOLS = new Set(['file:', 'data:', 'blob:', 'devtools:']);
+// Custom schemes must be registered before the app is ready.
+registerMediaScheme();
+
+const LOCAL_PROTOCOLS = new Set(['file:', 'data:', 'blob:', 'devtools:', `${MEDIA_SCHEME}:`]);
 
 /** Enforce "no outbound network requests": cancel anything that is not local. */
 function blockNetworkRequests(): void {
@@ -42,6 +47,7 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     blockNetworkRequests();
+    registerMediaProtocol();
     registerIpc();
     createMainWindow();
   });

@@ -12,6 +12,9 @@ function invoke<K extends IpcChannel>(
 
 const api: StrudyApi = {
   getAppInfo: () => invoke('app:getInfo'),
+  openMedia: (kind) => invoke('files:openDialog', kind),
+  getPosition: (path) => invoke('positions:get', path),
+  setPosition: (path, seconds) => invoke('positions:set', path, seconds),
 };
 
 contextBridge.exposeInMainWorld('api', api);
