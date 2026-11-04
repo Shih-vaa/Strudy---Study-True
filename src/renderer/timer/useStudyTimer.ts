@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isPresenceOk } from '../presence/presenceCheck';
 import { registerExitFlush } from '../state/exitFlush';
 import { useSessionStore } from '../state/useSessionStore';
 import { createStudyTimer, intersect, isStudying, TICK_MS, type StudyConditions } from './studyTimer';
@@ -27,7 +28,7 @@ function readConditions(video: HTMLVideoElement): StudyConditions {
     videoPlaying: isVideoPlaying(video),
     windowFocused: document.hasFocus(),
     windowVisible: document.visibilityState === 'visible',
-    presenceOk: true, // Presence checks arrive in Milestone 8.
+    presenceOk: isPresenceOk(useSessionStore.getState().presence),
     systemActive: useSessionStore.getState().systemActive,
   };
 }
@@ -78,7 +79,7 @@ export function useStudyTimer(video: HTMLVideoElement | null, path: string): voi
     window.addEventListener('blur', onChange);
     document.addEventListener('visibilitychange', onChange);
     const unsubscribe = useSessionStore.subscribe((state, prev) => {
-      if (state.systemActive !== prev.systemActive) onChange();
+      if (state.systemActive !== prev.systemActive || state.presence.phase !== prev.presence.phase) onChange();
     });
     // Before exiting, bank the part of the current second that has not been ticked yet.
     const unregisterExitFlush = registerExitFlush(onChange);

@@ -30,6 +30,15 @@ export function upsertSession(sessions: readonly Session[], incoming: Session): 
   return sessions.map((s, i) => (i === index ? incoming : s));
 }
 
+/** "Still studying?" went unanswered: count it and log a presence_missed event. */
+export function recordPresenceMissed(session: Session, at: number): Session {
+  return {
+    ...session,
+    presenceMissedCount: session.presenceMissedCount + 1,
+    events: [...session.events, { type: 'presence_missed', timestamp: at }],
+  };
+}
+
 /** Logs a wrong password attempt; `detail` says where it was typed (exit, settings...). */
 export function recordAuthFailed(session: Session, at: number, detail?: string): Session {
   const event: StudyEvent =

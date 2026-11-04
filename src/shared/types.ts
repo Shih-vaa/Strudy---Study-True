@@ -16,6 +16,21 @@ export type OpenDialogKind = 'file' | 'folder';
 export interface Settings {
   /** Take focus back shortly after the window loses it. */
   focusLock: boolean;
+  /**
+   * "Still studying?" comes after a random number of minutes of *studying* (not wall-clock
+   * time) between these two, inclusive. Whole minutes, 1 to 180, shortest <= longest.
+   */
+  presenceMinMinutes: number;
+  presenceMaxMinutes: number;
+}
+
+/** The presence-check timings in force, in milliseconds. */
+export interface PresenceConfig {
+  /** Study time between checks is a random value in [minMs, maxMs]. */
+  minMs: number;
+  maxMs: number;
+  /** How long to wait for a click before pausing the video and logging a miss. */
+  responseMs: number;
 }
 
 export type StudyEventType = 'focus_lost' | 'presence_missed' | 'auth_failed';
@@ -68,6 +83,7 @@ export interface IpcInvokeMap {
   'auth:lock': { args: []; result: void };
   /** Verifies the current password, then replaces it. False means the current one was wrong. */
   'auth:changePassword': { args: [current: string, next: string]; result: boolean };
+  'presence:getConfig': { args: []; result: PresenceConfig };
   'store:getSettings': { args: []; result: Settings };
   /** Rejects unless unlocked with auth:verify. Returns the settings now in force. */
   'store:setSettings': { args: [patch: Partial<Settings>]; result: Settings };
@@ -105,6 +121,7 @@ export interface StrudyApi {
   lockSettings(): Promise<void>;
   /** Resolves false if `current` is not the exit password. */
   changePassword(current: string, next: string): Promise<boolean>;
+  getPresenceConfig(): Promise<PresenceConfig>;
   getSettings(): Promise<Settings>;
   setSettings(patch: Partial<Settings>): Promise<Settings>;
   /** Subscribes to a main-process event. Returns an unsubscribe function. */

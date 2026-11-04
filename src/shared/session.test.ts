@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, isSession, recordAuthFailed, upsertSession } from './session';
+import { createSession, isSession, recordAuthFailed, recordPresenceMissed, upsertSession } from './session';
+
+describe('recordPresenceMissed', () => {
+  it('counts the miss and logs a presence_missed event with its timestamp', () => {
+    const after = recordPresenceMissed(createSession('s', 1), 7_000);
+    expect(after.presenceMissedCount).toBe(1);
+    expect(after.events).toEqual([{ type: 'presence_missed', timestamp: 7_000 }]);
+    expect(isSession(after)).toBe(true);
+  });
+
+  it('accumulates and does not touch the other counters or the input', () => {
+    const before = { ...createSession('s', 1), focusLostCount: 2, studyMs: 900 };
+    const twice = recordPresenceMissed(recordPresenceMissed(before, 2_000), 3_000);
+    expect(twice).toMatchObject({ presenceMissedCount: 2, focusLostCount: 2, studyMs: 900 });
+    expect(twice.events.map((e) => e.timestamp)).toEqual([2_000, 3_000]);
+    expect(before.presenceMissedCount).toBe(0);
+  });
+});
 
 describe('upsertSession', () => {
   const open = (id: string, studyMs = 0) => ({ ...createSession(id, 1_000), studyMs });

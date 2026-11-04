@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { checkNewPassword, PASSWORD_MIN_LENGTH } from '../../shared/auth';
+import { ipcErrorMessage } from '../ipcError';
 
 interface SetupPasswordProps {
   onDone: () => void;
@@ -26,7 +27,7 @@ export default function SetupPassword({ onDone }: SetupPasswordProps) {
       await window.api.setPassword(password);
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the password.');
+      setError(ipcErrorMessage(e, 'Could not save the password.'));
       setBusy(false);
     }
   };

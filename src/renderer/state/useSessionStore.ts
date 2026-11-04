@@ -1,16 +1,18 @@
 import { create } from 'zustand';
-import { createSession, recordAuthFailed } from '../../shared/session';
+import { createSession, recordAuthFailed, recordPresenceMissed } from '../../shared/session';
 import type { OpenDialogKind, Session } from '../../shared/types';
 import { recordFocusLost, recordFocusReturned, type FocusLoss } from '../focus/focusLoss';
 import { clampSpeed, nextSpeed } from '../player/speed';
+import { IDLE_PRESENCE, type PresenceState } from '../presence/presenceCheck';
 
 type Screen = 'library' | 'player' | 'settings';
 
 const newSession = (): Session => createSession(crypto.randomUUID(), Date.now());
 
 /** A dialog or overlay is up, so the player's keyboard shortcuts must stay quiet. */
-export const isModalOpen = (state: Pick<SessionState, 'focusLoss' | 'exitDialogOpen'>): boolean =>
-  state.focusLoss !== null || state.exitDialogOpen;
+export const isModalOpen = (
+  state: Pick<SessionState, 'focusLoss' | 'exitDialogOpen' | 'presence'>,
+): boolean => state.focusLoss !== null || state.exitDialogOpen || state.presence.phase !== 'idle';
 
 interface SessionState {
   screen: Screen;
@@ -31,6 +33,10 @@ interface SessionState {
   focusLoss: FocusLoss | null;
   /** The "enter the exit password" dialog is open. */
   exitDialogOpen: boolean;
+  /** The "Still studying?" check. */
+  presence: PresenceState;
+  /** Study time (ms into the session) at which the next check comes up; null until scheduled. */
+  presenceDueMs: number | null;
 
   /** Opens a picker; resolves true if a playlist was loaded. */
   openMedia: (kind: OpenDialogKind) => Promise<boolean>;
@@ -56,6 +62,10 @@ interface SessionState {
 
   openExitDialog: () => void;
   closeExitDialog: () => void;
+  setPresence: (presence: PresenceState) => void;
+  setPresenceDue: (dueMs: number) => void;
+  /** The check went unanswered: mark it missed, count it and log it. */
+  presenceMissed: (at: number) => void;
   /** A wrong password was entered: log it on the running session; `detail` says where. */
   logAuthFailure: (at: number, detail?: string) => void;
 }
@@ -72,6 +82,8 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   studying: false,
   focusLoss: null,
   exitDialogOpen: false,
+  presence: IDLE_PRESENCE,
+  presenceDueMs: null,
 
   openMedia: async (kind) => {
     const paths = await window.api.openMedia(kind);
@@ -150,6 +162,19 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
 
   openExitDialog: () => set({ exitDialogOpen: true }),
   closeExitDialog: () => set({ exitDialogOpen: false }),
+
+  setPresence: (presence) => set({ presence }),
+
+  setPresenceDue: (dueMs) => set({ presenceDueMs: dueMs }),
+
+  presenceMissed: (at) =>
+    set(({ session, presence }) => {
+      if (presence.phase !== 'pending') return {};
+      return {
+        presence: { phase: 'missed', shownAt: presence.shownAt },
+        session: recordPresenceMissed(session ?? newSession(), at),
+      };
+    }),
 
   logAuthFailure: (at, detail) =>
     set(({ session }) => ({ session: recordAuthFailed(session ?? newSession(), at, detail) })),

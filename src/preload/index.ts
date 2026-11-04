@@ -31,6 +31,7 @@ const api: StrudyApi = {
   unlockSettings: (password) => invoke('auth:verify', password),
   lockSettings: () => invoke('auth:lock'),
   changePassword: (current, next) => invoke('auth:changePassword', current, next),
+  getPresenceConfig: () => invoke('presence:getConfig'),
   getSettings: () => invoke('store:getSettings'),
   setSettings: (patch) => invoke('store:setSettings', patch),
   onEvent: (channel, callback) => {

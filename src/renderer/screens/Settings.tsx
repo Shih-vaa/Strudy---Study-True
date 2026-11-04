@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { checkNewPassword, PASSWORD_MIN_LENGTH } from '../../shared/auth';
+import { PRESENCE_MINUTES_MAX, PRESENCE_MINUTES_MIN } from '../../shared/settings';
 import type { Settings as SettingsValues } from '../../shared/types';
+import { ipcErrorMessage } from '../ipcError';
 import { useSessionStore } from '../state/useSessionStore';
 
 /** Settings can weaken the lock, so they open only with the exit password. */
@@ -96,35 +98,108 @@ function Options({ onLocked }: { onLocked: () => void }) {
     void window.api.getSettings().then(setSettings);
   }, []);
 
-  const change = async (patch: Partial<SettingsValues>) => {
+  /** Saves a change. Returns an error message, or null on success. */
+  const save = async (patch: Partial<SettingsValues>): Promise<string | null> => {
     try {
       setSettings(await window.api.setSettings(patch));
-    } catch {
-      // The unlock runs out after a few minutes: ask for the password again.
-      onLocked();
+      return null;
+    } catch (e) {
+      const message = ipcErrorMessage(e);
+      if (/locked/i.test(message)) {
+        // The unlock runs out after a few minutes: ask for the password again.
+        onLocked();
+        return null;
+      }
+      return message;
     }
   };
 
   if (!settings) return null;
 
   return (
-    <section className="setup-card" aria-label="Options">
-      <h2 className="card-title">Focus</h2>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={settings.focusLock}
-          onChange={(e) => void change({ focusLock: e.target.checked })}
-        />
-        <span>
-          Bring Strudy back to the front when I leave it
-          <small>
-            When off, leaving still pauses the video, stops the clock and is logged. Strudy just does not
-            pull itself back.
-          </small>
-        </span>
-      </label>
-    </section>
+    <>
+      <section className="setup-card" aria-label="Focus">
+        <h2 className="card-title">Focus</h2>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={settings.focusLock}
+            onChange={(e) => void save({ focusLock: e.target.checked })}
+          />
+          <span>
+            Bring Strudy back to the front when I leave it
+            <small>
+              When off, leaving still pauses the video, stops the clock and is logged. Strudy just does not
+              pull itself back.
+            </small>
+          </span>
+        </label>
+      </section>
+
+      <PresenceRange settings={settings} save={save} />
+    </>
+  );
+}
+
+function PresenceRange({
+  settings,
+  save,
+}: {
+  settings: SettingsValues;
+  save: (patch: Partial<SettingsValues>) => Promise<string | null>;
+}) {
+  const [min, setMin] = useState(String(settings.presenceMinMinutes));
+  const [max, setMax] = useState(String(settings.presenceMaxMinutes));
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    // Both ends go together, so the pair is checked as a whole.
+    const error = await save({ presenceMinMinutes: Number(min), presenceMaxMinutes: Number(max) });
+    setMessage(error ? { ok: false, text: error } : { ok: true, text: 'Saved.' });
+  };
+
+  return (
+    <form className="setup-card" onSubmit={(event) => void submit(event)}>
+      <h2 className="card-title">Still studying? checks</h2>
+      <p className="setup-lead">
+        Every so often Strudy asks &ldquo;Still studying?&rdquo;. If nobody clicks within 30 seconds, the video
+        pauses and it is logged. Choose how many minutes of studying pass between checks; the gap is a random
+        time in this range.
+      </p>
+      <div className="range-row">
+        <label className="field">
+          Shortest (minutes)
+          <input
+            type="number"
+            min={PRESENCE_MINUTES_MIN}
+            max={PRESENCE_MINUTES_MAX}
+            step={1}
+            value={min}
+            onChange={(e) => setMin(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          Longest (minutes)
+          <input
+            type="number"
+            min={PRESENCE_MINUTES_MIN}
+            max={PRESENCE_MINUTES_MAX}
+            step={1}
+            value={max}
+            onChange={(e) => setMax(e.target.value)}
+          />
+        </label>
+      </div>
+      {message && (
+        <p className={message.ok ? 'form-ok' : 'form-error'} role="alert">
+          {message.text}
+        </p>
+      )}
+      <button className="btn primary" type="submit">
+        Save
+      </button>
+    </form>
   );
 }
 
@@ -156,7 +231,7 @@ function ChangePassword() {
         setMessage({ ok: false, text: 'The current password is wrong.' });
       }
     } catch (e) {
-      setMessage({ ok: false, text: e instanceof Error ? e.message : 'Could not change the password.' });
+      setMessage({ ok: false, text: ipcErrorMessage(e, 'Could not change the password.') });
     }
     setBusy(false);
   };

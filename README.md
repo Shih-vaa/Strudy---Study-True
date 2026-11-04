@@ -2,7 +2,7 @@
 
 A focused desktop player for lecture videos stored on your computer. Strudy tracks **real** study time: a second only counts while you are actually watching, and anything that looks like not studying (paused, window unfocused, minimized, computer asleep) stops the clock.
 
-> **Status: work in progress.** Milestones 1–6 of 10 are done: the player, hold-to-boost, the study timer, focus handling and the exit password. Kiosk mode, presence checks, reports and installers are still to come. See the [roadmap](#roadmap).
+> **Status: work in progress.** The player, hold-to-boost, the study timer, focus handling, the exit password, a Settings screen and "Still studying?" checks are done. Kiosk mode was skipped by choice. Reports and installers are still to come. See the [roadmap](#roadmap).
 
 ## Why it exists
 
@@ -39,7 +39,7 @@ It counts **wall-clock** seconds, so playback speed never changes it (1 real sec
 1. A video is loaded and actually playing (not paused, not ended, buffered enough to play)
 2. The app window is focused
 3. The window is visible (not minimized)
-4. No presence check is pending *(placeholder until the presence check is built)*
+4. No "Still studying?" check is waiting for a click
 5. The computer is not asleep and the screen is not locked
 
 Gaps longer than 2.5 s between ticks (sleep, throttling) are discarded rather than credited. Pauses and focus changes are accounted for at the moment they happen, not rounded to the next second.
@@ -54,6 +54,15 @@ When you leave Strudy while a lecture is open (switching apps, clicking another 
 4. A **"Come back to study"** screen covers the window, with how long you were away. Nothing plays or responds behind it until you press **Resume studying** (click, `Enter` or `Space`). The video resumes only if it was playing when you left; a video you had paused yourself stays paused.
 
 Leaving again before you dismiss the screen counts as a new loss. Leaving Strudy while on the library (no lecture open) is not counted. The window does not fight Strudy's own file-open dialog.
+
+### "Still studying?" checks
+
+Every so often, while you are studying, a box asks **"Still studying? Click to continue."**
+
+- The gap is a random number of minutes of *studying* (8 to 15 by default, changeable in Settings). Time spent paused or away does not count towards it, so a check never appears over a paused video.
+- While the box is up the video keeps playing, but the **study clock stops** until you click.
+- If nobody clicks within **30 seconds**, the video **pauses**, a `presence_missed` event is logged, and the miss is counted. Clicking afterwards resumes the video if it was playing.
+- If you leave Strudy while a check is up, the check is dropped (leaving is already logged as a focus loss).
 
 ### Exit password
 
@@ -73,6 +82,7 @@ There is no way to change or recover the password in this version.
 The **Settings** button on the library opens a screen that asks for the exit password first, because settings can switch the locks off. It stays unlocked for five minutes, or until you leave the screen. The check is made in the main process, so the screen cannot be talked into changing anything while locked.
 
 - **Bring Strudy back to the front when I leave it** (on by default). Turn it off and leaving still pauses the video, stops the clock and is logged; Strudy just does not pull itself back.
+- **"Still studying?" checks.** The shortest and longest gap, in whole minutes of studying (1 to 180). They are saved together, and the shortest cannot be longer than the longest.
 - **Change the exit password.** It asks for the current password again, and the new one needs at least 6 characters, entered twice.
 
 Wrong passwords typed here are logged like wrong ones at the exit dialog.
@@ -107,6 +117,7 @@ While developing you will not want the locks in your way. These switches work on
 ```bash
 STRUDY_FOCUS_LOCK=0 npm run dev   # stop Strudy pulling itself back to the front (pausing, logging and the overlay still work)
 STRUDY_EXIT_LOCK=0 npm run dev    # let the window close without the password
+STRUDY_PRESENCE_FAST=1 npm run dev # "Still studying?" every 4 to 6 seconds of studying, 4 seconds to answer
 ```
 
 `Ctrl+C` in the terminal always stops `npm run dev` (it force-quits Strudy if the window has not closed after two seconds).
@@ -123,7 +134,7 @@ STRUDY_EXIT_LOCK=0 npm run dev    # let the window close without the password
 - Strudy is a **deterrent and a logger**, not security. Anyone can still shut the lid, power off, Force Quit it (`Cmd+Option+Esc` on macOS, Task Manager on Windows), or delete `strudy.json`. The log is what makes that visible: a session that never ended has no `endedAt`.
 - A plain `kill` (SIGTERM) does not close a locked Strudy either, because Electron answers it by closing the window and the lock refuses. Use Force Quit or `kill -9`.
 - **Forgot the password?** Settings cannot help, since it needs the password too. Quit Strudy by Force Quit, then delete the `auth` entry in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password.
-- Taking focus back is best effort. Until kiosk mode is built, `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
+- Taking focus back is best effort. There is no kiosk mode (skipped by choice), so `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. Reload and DevTools shortcuts are not blocked yet either. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.
 - Chromium pauses video that has no audio track when the window is hidden. Normal lectures have audio, so this mostly shows up with silent test clips.
@@ -139,8 +150,8 @@ STRUDY_EXIT_LOCK=0 npm run dev    # let the window close without the password
 | 4 | Study timer, unit tests, on-screen clock | Done |
 | 5 | Focus handling: pause on blur, overlay, log | Done |
 | 6 | Exit password, hashed storage, close interception | Done |
-| 7 | Kiosk mode and shortcut blocking (macOS first, then Windows) | Planned |
-| 8 | "Still studying?" presence checks | Planned |
+| 7 | Kiosk mode and shortcut blocking | Kiosk skipped by choice; blocking reload/DevTools still open |
+| 8 | "Still studying?" presence checks | Done |
 | 9 | Session summary, 7-day chart, CSV export | Planned |
 | 10 | Packaging (dmg and Windows installer) and platform notes | Planned |
 
@@ -158,6 +169,7 @@ src/
     components/ Video player, controls, study clock, focus overlay
     player/     Playback hooks, speed, hold-to-boost gesture
     focus/      Focus-loss logging logic and the pause/overlay hook
+    presence/   "Still studying?" logic (pure) and the hook that runs it
     timer/      Study timer (pure logic), clock helpers, session persistence
     state/      Zustand store
 scripts/      Dev runner

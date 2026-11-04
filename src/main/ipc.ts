@@ -21,6 +21,7 @@ import {
 } from './auth';
 import { suspendFocusLock } from './focusLock';
 import { grantMedia, listVideosInFolder } from './media';
+import { getPresenceConfig } from './presence';
 import { getPosition, getSettings, listSessions, saveSession, setPosition, setSettings } from './store';
 import { isAppUrl } from './window';
 
@@ -114,6 +115,7 @@ export function registerIpc(): void {
   handle('auth:lock', () => lockSettings());
   handle('auth:changePassword', (_event, current, next) => changePassword(current, next));
 
+  handle('presence:getConfig', () => getPresenceConfig());
   handle('store:getSettings', () => getSettings());
   handle('store:setSettings', (_event, patch) => {
     // Changing settings can weaken the lock, so it needs the password entered recently.

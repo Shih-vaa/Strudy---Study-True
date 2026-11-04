@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import Controls from '../components/Controls';
 import FocusOverlay from '../components/FocusOverlay';
+import PresenceModal from '../components/PresenceModal';
 import StudyClock from '../components/StudyClock';
 import VideoPlayer from '../components/VideoPlayer';
 import { useFocusLock } from '../focus/useFocusLock';
 import { restart, skip, togglePlay } from '../player/actions';
 import { baseName } from '../player/format';
+import { usePresenceCheck } from '../presence/usePresenceCheck';
 import { usePlayback } from '../player/usePlayback';
 import { usePlayerShortcuts } from '../player/usePlayerShortcuts';
 import { useSessionStore } from '../state/useSessionStore';
@@ -38,6 +40,7 @@ export default function Player() {
   const playback = usePlayback(video);
   usePlayerShortcuts(video);
   const focus = useFocusLock(video);
+  const presence = usePresenceCheck(video);
 
   const ready = video !== null;
 
@@ -89,6 +92,10 @@ export default function Player() {
         onNext={next}
         onSpeedChange={setSpeed}
       />
+
+      {presence.phase !== 'idle' && (
+        <PresenceModal phase={presence.phase} secondsLeft={presence.secondsLeft} onAnswer={presence.answer} />
+      )}
 
       {focus.overlayVisible && <FocusOverlay awaySeconds={focus.awaySeconds} onDismiss={focus.dismiss} />}
     </div>

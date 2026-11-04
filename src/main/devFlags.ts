@@ -8,3 +8,8 @@ import { app } from 'electron';
 export function devSwitchOff(name: string): boolean {
   return !app.isPackaged && process.env[name] === '0';
 }
+
+/** The same, for switches that turn something on (NAME=1). */
+export function devSwitchOn(name: string): boolean {
+  return !app.isPackaged && process.env[name] === '1';
+}
