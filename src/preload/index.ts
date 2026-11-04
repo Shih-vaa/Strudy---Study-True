@@ -25,6 +25,7 @@ const api: StrudyApi = {
   setPosition: (path, seconds) => invoke('positions:set', path, seconds),
   saveSession: (session) => invoke('sessions:save', session),
   listSessions: () => invoke('sessions:list'),
+  exportSessionsCsv: () => invoke('sessions:exportCsv'),
   isPasswordSet: () => invoke('auth:isSetup'),
   setPassword: (password) => invoke('auth:setup', password),
   verifyAndQuit: (password, session) => invoke('auth:verifyAndQuit', password, session),

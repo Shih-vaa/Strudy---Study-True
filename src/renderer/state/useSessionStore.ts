@@ -5,7 +5,7 @@ import { recordFocusLost, recordFocusReturned, type FocusLoss } from '../focus/f
 import { clampSpeed, nextSpeed } from '../player/speed';
 import { IDLE_PRESENCE, type PresenceState } from '../presence/presenceCheck';
 
-type Screen = 'library' | 'player' | 'settings';
+type Screen = 'library' | 'player' | 'settings' | 'summary';
 
 const newSession = (): Session => createSession(crypto.randomUUID(), Date.now());
 
@@ -47,6 +47,7 @@ interface SessionState {
   stepSpeed: (direction: 1 | -1) => void;
   showLibrary: () => void;
   showSettings: () => void;
+  showSummary: () => void;
 
   /** Starts the session if needed and records that this video played. */
   noteVideoPlayed: (path: string) => void;
@@ -115,6 +116,8 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   showLibrary: () => set({ screen: 'library' }),
 
   showSettings: () => set({ screen: 'settings' }),
+
+  showSummary: () => set({ screen: 'summary' }),
 
   noteVideoPlayed: (path) =>
     set(({ session }) => {

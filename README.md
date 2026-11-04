@@ -2,7 +2,7 @@
 
 A focused desktop player for lecture videos stored on your computer. Strudy tracks **real** study time: a second only counts while you are actually watching, and anything that looks like not studying (paused, window unfocused, minimized, computer asleep) stops the clock.
 
-> **Status: work in progress.** The player, hold-to-boost, the study timer, focus handling, the exit password, a Settings screen and "Still studying?" checks are done. Kiosk mode was skipped by choice. Reports and installers are still to come. See the [roadmap](#roadmap).
+> **Status: work in progress.** The player, hold-to-boost, the study timer, focus handling, the exit password, a Settings screen, "Still studying?" checks and a Summary screen with CSV export are done. Kiosk mode was skipped by choice. The Mac installer is still to come. See the [roadmap](#roadmap).
 
 ## Why it exists
 
@@ -87,6 +87,18 @@ The **Settings** button on the library opens a screen that asks for the exit pas
 
 Wrong passwords typed here are logged like wrong ones at the exit dialog.
 
+### Summary and export
+
+The **Summary** button on the library shows:
+
+- **Today:** time studied, how many times you left the app, missed "Still studying?" checks, and the number of sessions.
+- **Last 7 days:** a bar chart of minutes studied per day (today is highlighted).
+- **Sessions:** every session, newest first, with its start, time studied, videos, times left, missed checks and how it ended. A session that never ended properly (Force Quit, power-off) is marked **Not closed properly**. Open a session's events to see exactly when you left, missed a check or typed a wrong password.
+
+**Export CSV** saves every session to a file you choose (a normal Save dialog), one row per session, oldest first: start and end time, study seconds and minutes, the videos, the counts and the events. It opens in Numbers or Excel. Text that starts like a formula (a video named `=...`) is neutralised, so opening the file can never run anything.
+
+A session counts toward the day it started, the same rule as the "Today" clock.
+
 ### Sessions
 
 A session starts when the first video plays after launch. The running session is saved every 10 seconds, when you leave the player, and straight away when something is logged, so a hard power-off still keeps everything up to the last save. A session that never ended cleanly keeps `endedAt: null`, which makes an abrupt stop visible. **Today** adds up every session that started today.
@@ -152,7 +164,7 @@ STRUDY_PRESENCE_FAST=1 npm run dev # "Still studying?" every 4 to 6 seconds of s
 | 6 | Exit password, hashed storage, close interception | Done |
 | 7 | Kiosk mode and shortcut blocking | Kiosk skipped by choice; blocking reload/DevTools still open |
 | 8 | "Still studying?" presence checks | Done |
-| 9 | Session summary, 7-day chart, CSV export | Planned |
+| 9 | Session summary, 7-day chart, CSV export | Done |
 | 10 | Packaging (dmg and Windows installer) and platform notes | Planned |
 
 **Platform honesty, for the lock to come:** on Windows, Ctrl+Alt+Del and the Windows key cannot be fully blocked without low-level keyboard hooks, which Strudy deliberately does not use. If something cannot be reliably blocked on an OS, this README will say so plainly rather than pretend.
@@ -165,9 +177,10 @@ src/
   preload/    The small typed API exposed to the UI (contextBridge)
   shared/     Types and helpers used by both sides
   renderer/   React UI
-    screens/    Library, Player
+    screens/    Library, Player, Settings, Summary
     components/ Video player, controls, study clock, focus overlay
     player/     Playback hooks, speed, hold-to-boost gesture
+    summary/    Summary maths: today's totals, the 7-day chart, the session list
     focus/      Focus-loss logging logic and the pause/overlay hook
     presence/   "Still studying?" logic (pure) and the hook that runs it
     timer/      Study timer (pure logic), clock helpers, session persistence

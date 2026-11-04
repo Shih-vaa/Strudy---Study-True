@@ -4,6 +4,7 @@ import Library from './screens/Library';
 import Player from './screens/Player';
 import Settings from './screens/Settings';
 import SetupPassword from './screens/SetupPassword';
+import Summary from './screens/Summary';
 import { useSessionStore } from './state/useSessionStore';
 import { usePowerState } from './timer/usePowerState';
 import { useSessionPersistence } from './timer/useSessionPersistence';
@@ -36,7 +37,15 @@ export default function App() {
     <>
       {/* inert: nothing behind the dialog can be focused or clicked while it is open */}
       <div className="app-root" inert={exitDialogOpen}>
-        {screen === 'player' ? <Player /> : screen === 'settings' ? <Settings /> : <Library />}
+        {screen === 'player' ? (
+          <Player />
+        ) : screen === 'settings' ? (
+          <Settings />
+        ) : screen === 'summary' ? (
+          <Summary />
+        ) : (
+          <Library />
+        )}
       </div>
       {exitDialogOpen && <PasswordDialog onCancel={closeExitDialog} />}
     </>

@@ -121,6 +121,172 @@ body {
   text-transform: uppercase;
 }
 
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 760px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 48px 32px 32px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.chart {
+  width: 100%;
+  height: auto;
+}
+
+.chart-axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-bar {
+  fill: rgba(108, 140, 255, 0.55);
+}
+
+.chart-bar.today {
+  fill: var(--accent);
+}
+
+.chart-value {
+  fill: var(--text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-label {
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+.chart-label.today {
+  fill: var(--text);
+  font-weight: 600;
+}
+
+.chart-sub {
+  fill: var(--muted);
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-item {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.session-item:first-child {
+  border-top: 0;
+}
+
+.session-main {
+  display: grid;
+  grid-template-columns: 1.6fr 0.8fr 0.7fr 0.6fr 0.7fr 1.2fr;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 14px;
+}
+
+.session-study {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.session-status {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.status-running {
+  color: var(--ok);
+}
+
+.status-warn {
+  color: var(--bad);
+}
+
+.session-events {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.session-events summary {
+  cursor: pointer;
+}
+
+.session-events ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.event-time {
+  display: inline-block;
+  min-width: 4.5em;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-detail {
+  opacity: 0.8;
+}
+
 .range-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

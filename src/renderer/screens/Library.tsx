@@ -9,6 +9,7 @@ export default function Library() {
   const playAt = useSessionStore((s) => s.playAt);
   const openExitDialog = useSessionStore((s) => s.openExitDialog);
   const showSettings = useSessionStore((s) => s.showSettings);
+  const showSummary = useSessionStore((s) => s.showSummary);
 
   const [notice, setNotice] = useState<string | null>(null);
   const [positions, setPositions] = useState<Record<string, number>>({});
@@ -47,6 +48,9 @@ export default function Library() {
           <p className="tagline">True Study. A focused lecture player.</p>
         </div>
         <div className="header-actions">
+          <button className="btn" onClick={showSummary}>
+            Summary
+          </button>
           <button className="btn" onClick={showSettings}>
             Settings
           </button>

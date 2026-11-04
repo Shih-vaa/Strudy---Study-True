@@ -19,6 +19,7 @@ import {
   unlockSettings,
   verifyAndQuit,
 } from './auth';
+import { exportSessionsCsv } from './exportCsv';
 import { suspendFocusLock } from './focusLock';
 import { grantMedia, listVideosInFolder } from './media';
 import { getPresenceConfig } from './presence';
@@ -107,6 +108,7 @@ export function registerIpc(): void {
   });
 
   handle('sessions:list', () => listSessions());
+  handle('sessions:exportCsv', (event) => exportSessionsCsv(BrowserWindow.fromWebContents(event.sender)));
 
   handle('auth:isSetup', () => isPasswordSet());
   handle('auth:setup', (_event, password) => setupPassword(password));
