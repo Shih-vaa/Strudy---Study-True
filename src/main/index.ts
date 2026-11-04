@@ -5,7 +5,14 @@ import { registerIpc } from './ipc';
 import { registerMediaProtocol, registerMediaScheme } from './media';
 import { buildMenuTemplate } from './menuTemplate';
 import { watchPower } from './power';
+import { findDebugSwitch } from './debugSwitches';
 import { createMainWindow, devServerUrl } from './window';
+
+// The installed app will not start with a debugging switch (remote debugging, the inspector):
+// it would let anyone drive the page from outside. Running from source is unaffected.
+if (app.isPackaged && findDebugSwitch(process.argv) !== null) {
+  process.exit(1);
+}
 
 app.setName('Strudy');
 

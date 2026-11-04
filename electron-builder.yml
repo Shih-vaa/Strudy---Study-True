@@ -1,0 +1,40 @@
+# Packaging for macOS. `npm run dist` builds the app and the installers into release/.
+#
+# electron-builder builds, hardens and signs the app (a "dir" target); scripts/make-dmg.sh then
+# wraps it in a disk image with macOS's own hdiutil. The builder's own disk-image step downloads a
+# helper tool from GitHub at build time, and that download can stall, so it is not used.
+appId: com.strudy.app
+productName: Strudy
+copyright: Copyright © 2026 Apoorv
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the compiled app goes in. react, zustand and the rest are bundled into dist/renderer by
+# Vite; the only runtime dependency left is electron-store.
+files:
+  - dist/**/*
+  - package.json
+
+asar: true
+
+# Electron "fuses" are switches flipped in the packaged binary itself. They close doors that an
+# environment variable or command-line flag could otherwise open on the installed app.
+electronFuses:
+  runAsNode: false # ELECTRON_RUN_AS_NODE: run the binary as a plain Node interpreter
+  enableNodeOptionsEnvironmentVariable: false # NODE_OPTIONS
+  enableNodeCliInspectArguments: false # --inspect, --inspect-brk and the SIGUSR1 inspector
+  enableEmbeddedAsarIntegrityValidation: true # refuse a modified app.asar
+  onlyLoadAppFromAsar: true # never load loose, unchecked app code
+
+mac:
+  category: public.app-category.education
+  # No Apple Developer ID here, so the app gets a local "ad-hoc" signature, which is what lets it run
+  # on Apple silicon at all after the fuses are set. The hardened runtime is for notarization and
+  # does not work with an ad-hoc signature, so it is off.
+  identity: '-'
+  hardenedRuntime: false
+  # The architectures come from the command line (npm run pack builds both): release/mac-arm64 is
+  # for Apple silicon (M1 and later), release/mac is for Intel.
+  target: dir

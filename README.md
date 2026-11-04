@@ -2,7 +2,7 @@
 
 A focused desktop player for lecture videos stored on your computer. Strudy tracks **real** study time: a second only counts while you are actually watching, and anything that looks like not studying (paused, window unfocused, minimized, computer asleep) stops the clock.
 
-> **Status: work in progress.** The player, hold-to-boost, the study timer, focus handling, the exit password, a Settings screen, "Still studying?" checks, a Summary screen with CSV export, and reload/DevTools blocking are done. Kiosk mode was skipped by choice. The Mac installer is still to come. See the [roadmap](#roadmap).
+> **Status:** everything in the plan is built for macOS: the player, hold-to-boost, the study timer, focus handling, the exit password, a Settings screen, "Still studying?" checks, a Summary screen with CSV export, reload/DevTools blocking, and a Mac installer. Kiosk mode was skipped by choice, and Windows is not being built or tested for now. See the [roadmap](#roadmap).
 
 ## Why it exists
 
@@ -133,6 +133,9 @@ The first run downloads the Electron binary, so it needs internet once. If that 
 | `npm run build` | Build main, preload and renderer into `dist/` |
 | `npm test` | Run the unit tests (Vitest) |
 | `npm run typecheck` | Type-check main, renderer and tests |
+| `npm run dist` | Build the Mac installers (Apple silicon and Intel) into `release/`; see [Installing on a Mac](#installing-on-a-mac) |
+| `npm run dist:arm64` | The same, for Apple silicon only (it does not need the large Intel download) |
+| `npm run pack` / `pack:arm64` | Just the app folder, without the disk images |
 
 While developing you will not want the locks in your way. These switches work only when running from source and are **ignored in packaged builds**:
 
@@ -144,6 +147,38 @@ STRUDY_DEV_TOOLS=0 npm run dev    # behave like the installed app: no reload, no
 ```
 
 `Ctrl+C` in the terminal always stops `npm run dev` (it force-quits Strudy if the window has not closed after two seconds).
+
+## Installing on a Mac
+
+`npm run dist` makes two disk images in `release/`:
+
+- `Strudy-<version>-arm64.dmg` for Macs with Apple silicon (M1 and later)
+- `Strudy-<version>-x64.dmg` for Intel Macs
+
+Not sure which? Apple menu → **About This Mac**: "Chip: Apple M…" means arm64, "Processor: Intel…" means x64.
+
+The app is built and signed by `electron-builder`; the disk image is then made by `scripts/make-dmg.sh` with macOS's own `hdiutil`, because the builder's own disk-image step downloads a helper from GitHub and that download can stall. Building the Intel version downloads Electron's Intel build (about 125 MB) once. If that download is very slow or stalls, use `npm run dist:arm64` for the Apple silicon image now and run `npm run dist` again later for the Intel one.
+
+1. Open the `.dmg` and drag **Strudy** into **Applications**.
+2. **First launch:** Strudy is not signed with an Apple Developer ID (that needs a paid Apple account), so macOS will say it cannot check the app. Control-click (or right-click) **Strudy** in Applications, choose **Open**, then **Open** again. You only do this once. If macOS says the app is "damaged", run this in Terminal and try again:
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Strudy.app
+   ```
+
+3. The first run asks for the exit password.
+
+To **update**, install the newer `.dmg` over the old app: your history and password are kept. To **uninstall**, drag Strudy to the Trash; delete `~/Library/Application Support/Strudy` as well to erase everything it stored.
+
+### What the installed app does differently
+
+The installed app is locked down further than a run from source:
+
+- Electron's "fuses" are switched in the app itself: it ignores `ELECTRON_RUN_AS_NODE` and `NODE_OPTIONS`, turns the `--inspect` debugger off, and checks that its code file has not been altered.
+- It **refuses to start** if launched with a remote-debugging or inspector switch (for example `--remote-debugging-port`), because that would let anyone drive the page from outside.
+- DevTools and reload are off, and the development switches (`STRUDY_FOCUS_LOCK=0` and the rest) are ignored.
+
+This is still a deterrent, not a vault: someone with admin rights on the Mac can replace or delete the app itself.
 
 ## Privacy and data
 
@@ -157,7 +192,7 @@ STRUDY_DEV_TOOLS=0 npm run dev    # behave like the installed app: no reload, no
 - Strudy is a **deterrent and a logger**, not security. Anyone can still shut the lid, power off, Force Quit it (`Cmd+Option+Esc` on macOS, Task Manager on Windows), or delete `strudy.json`. The log is what makes that visible: a session that never ended has no `endedAt`.
 - A plain `kill` (SIGTERM) does not close a locked Strudy either, because Electron answers it by closing the window and the lock refuses. Use Force Quit or `kill -9`.
 - **Forgot the password?** Settings cannot help, since it needs the password too. Quit Strudy by Force Quit, then delete the `auth` entry in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password.
-- Taking focus back is best effort. There is no kiosk mode (skipped by choice), so `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. Someone comfortable with Terminal could still start the app with debugging switches; closing that is a job for the installer step. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
+- Taking focus back is best effort. There is no kiosk mode (skipped by choice), so `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. The installed app refuses debugging switches; a run from source (`npm run dev`) does not, by design. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.
 - Chromium pauses video that has no audio track when the window is hidden. Normal lectures have audio, so this mostly shows up with silent test clips.
@@ -176,7 +211,7 @@ STRUDY_DEV_TOOLS=0 npm run dev    # behave like the installed app: no reload, no
 | 7 | Kiosk mode and shortcut blocking | Reload/DevTools blocking done; kiosk skipped by choice |
 | 8 | "Still studying?" presence checks | Done |
 | 9 | Session summary, 7-day chart, CSV export | Done |
-| 10 | Packaging (dmg and Windows installer) and platform notes | Planned |
+| 10 | Packaging (Mac installers) and platform notes | Done (Mac only; no Windows installer for now) |
 
 **Platform honesty, for the lock to come:** on Windows, Ctrl+Alt+Del and the Windows key cannot be fully blocked without low-level keyboard hooks, which Strudy deliberately does not use. If something cannot be reliably blocked on an OS, this README will say so plainly rather than pretend.
 
@@ -196,7 +231,9 @@ src/
     presence/   "Still studying?" logic (pure) and the hook that runs it
     timer/      Study timer (pure logic), clock helpers, session persistence
     state/      Zustand store
-scripts/      Dev runner
+scripts/      Dev runner and the app-icon generator (make-icon.swift, make-icns.sh)
+build/        App icon (icon.icns) for the installer
+electron-builder.yml  Packaging settings, including the fuses
 CLAUDE.md     The project spec and working rules
 ```
 
