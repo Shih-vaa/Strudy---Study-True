@@ -28,6 +28,11 @@ const api: StrudyApi = {
   isPasswordSet: () => invoke('auth:isSetup'),
   setPassword: (password) => invoke('auth:setup', password),
   verifyAndQuit: (password, session) => invoke('auth:verifyAndQuit', password, session),
+  unlockSettings: (password) => invoke('auth:verify', password),
+  lockSettings: () => invoke('auth:lock'),
+  changePassword: (current, next) => invoke('auth:changePassword', current, next),
+  getSettings: () => invoke('store:getSettings'),
+  setSettings: (patch) => invoke('store:setSettings', patch),
   onEvent: (channel, callback) => {
     if (!EVENT_CHANNELS.includes(channel)) throw new Error(`Unknown event channel: ${channel}`);
     const listener = (): void => callback();

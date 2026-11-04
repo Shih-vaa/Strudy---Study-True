@@ -8,6 +8,7 @@ export default function Library() {
   const openMedia = useSessionStore((s) => s.openMedia);
   const playAt = useSessionStore((s) => s.playAt);
   const openExitDialog = useSessionStore((s) => s.openExitDialog);
+  const showSettings = useSessionStore((s) => s.showSettings);
 
   const [notice, setNotice] = useState<string | null>(null);
   const [positions, setPositions] = useState<Record<string, number>>({});
@@ -45,9 +46,14 @@ export default function Library() {
           <h1>Strudy</h1>
           <p className="tagline">True Study. A focused lecture player.</p>
         </div>
-        <button className="btn" onClick={openExitDialog}>
-          Exit
-        </button>
+        <div className="header-actions">
+          <button className="btn" onClick={showSettings}>
+            Settings
+          </button>
+          <button className="btn" onClick={openExitDialog}>
+            Exit
+          </button>
+        </div>
       </header>
 
       <div className="open-actions">

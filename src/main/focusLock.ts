@@ -2,16 +2,18 @@ import { app, BrowserWindow } from 'electron';
 import { devSwitchOff } from './devFlags';
 import { sendToWindow } from './events';
 import { isQuitting } from './quitGate';
+import { getSettings } from './store';
 
 /** How long after losing focus Strudy tries to take it back. */
 const REFOCUS_DELAY_MS = 250;
 
 /**
- * On by default. STRUDY_FOCUS_LOCK=0 turns off only the "take focus back" part (handy while
- * developing, since otherwise switching to your editor pulls Strudy to the front); it is
- * ignored in packaged builds. The blur/focus events, pausing and logging are unaffected.
+ * The "take focus back" part is on by default and can be switched off in Settings (which needs
+ * the exit password). STRUDY_FOCUS_LOCK=0 switches it off for development; that is ignored in
+ * packaged builds. Read at each blur, so a change applies immediately. The blur/focus events,
+ * pausing and logging are unaffected either way.
  */
-const regainEnabled = !devSwitchOff('STRUDY_FOCUS_LOCK');
+const regainEnabled = (): boolean => !devSwitchOff('STRUDY_FOCUS_LOCK') && getSettings().focusLock;
 
 let suspensions = 0;
 
@@ -54,7 +56,7 @@ export function watchFocus(win: BrowserWindow): void {
 
   win.on('blur', () => {
     sendToWindow(win, 'window:blur');
-    if (!regainEnabled || isQuitting()) return;
+    if (!regainEnabled() || isQuitting()) return;
     cancelPending();
     timer = setTimeout(() => {
       timer = null;

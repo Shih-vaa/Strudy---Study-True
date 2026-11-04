@@ -4,7 +4,7 @@ import type { OpenDialogKind, Session } from '../../shared/types';
 import { recordFocusLost, recordFocusReturned, type FocusLoss } from '../focus/focusLoss';
 import { clampSpeed, nextSpeed } from '../player/speed';
 
-type Screen = 'library' | 'player';
+type Screen = 'library' | 'player' | 'settings';
 
 const newSession = (): Session => createSession(crypto.randomUUID(), Date.now());
 
@@ -40,6 +40,7 @@ interface SessionState {
   setSpeed: (speed: number) => void;
   stepSpeed: (direction: 1 | -1) => void;
   showLibrary: () => void;
+  showSettings: () => void;
 
   /** Starts the session if needed and records that this video played. */
   noteVideoPlayed: (path: string) => void;
@@ -55,8 +56,8 @@ interface SessionState {
 
   openExitDialog: () => void;
   closeExitDialog: () => void;
-  /** A wrong exit password was entered: log it on the running session. */
-  logAuthFailure: (at: number) => void;
+  /** A wrong password was entered: log it on the running session; `detail` says where. */
+  logAuthFailure: (at: number, detail?: string) => void;
 }
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
@@ -100,6 +101,8 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   stepSpeed: (direction) => set({ speed: nextSpeed(get().speed, direction) }),
 
   showLibrary: () => set({ screen: 'library' }),
+
+  showSettings: () => set({ screen: 'settings' }),
 
   noteVideoPlayed: (path) =>
     set(({ session }) => {
@@ -148,6 +151,6 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   openExitDialog: () => set({ exitDialogOpen: true }),
   closeExitDialog: () => set({ exitDialogOpen: false }),
 
-  logAuthFailure: (at) =>
-    set(({ session }) => ({ session: recordAuthFailed(session ?? newSession(), at) })),
+  logAuthFailure: (at, detail) =>
+    set(({ session }) => ({ session: recordAuthFailed(session ?? newSession(), at, detail) })),
 }));

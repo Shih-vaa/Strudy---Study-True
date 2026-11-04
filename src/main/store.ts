@@ -1,6 +1,7 @@
 import Store from 'electron-store';
 import { upsertSession } from '../shared/session';
-import type { Session } from '../shared/types';
+import { DEFAULT_SETTINGS, normalizeSettings } from '../shared/settings';
+import type { Session, Settings } from '../shared/types';
 import { isStoredPasswordHash, type StoredPasswordHash } from './password';
 
 interface StoreSchema {
@@ -9,6 +10,7 @@ interface StoreSchema {
   sessions: Session[];
   /** The exit password's scrypt hash; null until first-run setup. */
   auth: StoredPasswordHash | null;
+  settings: Settings;
 }
 
 /** Positions under this are treated as "not started" and not kept. */
@@ -20,7 +22,7 @@ let store: Store<StoreSchema> | null = null;
 function getStore(): Store<StoreSchema> {
   store ??= new Store<StoreSchema>({
     name: 'strudy',
-    defaults: { positions: {}, sessions: [], auth: null },
+    defaults: { positions: {}, sessions: [], auth: null, settings: DEFAULT_SETTINGS },
   });
   return store;
 }
@@ -49,6 +51,15 @@ export function getPasswordHash(): StoredPasswordHash | null {
 
 export function setPasswordHash(hash: StoredPasswordHash): void {
   getStore().set('auth', hash);
+}
+
+/** Always a complete, valid Settings, whatever is (or is not) in the file. */
+export function getSettings(): Settings {
+  return normalizeSettings(getStore().get('settings'));
+}
+
+export function setSettings(settings: Settings): void {
+  getStore().set('settings', settings);
 }
 
 export function listSessions(): Session[] {

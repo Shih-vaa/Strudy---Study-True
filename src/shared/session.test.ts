@@ -46,6 +46,12 @@ describe('recordAuthFailed', () => {
     expect(before.events).toEqual([]);
   });
 
+  it('can say where the wrong password was typed', () => {
+    const after = recordAuthFailed(createSession('s', 1), 9_000, 'settings');
+    expect(after.events).toEqual([{ type: 'auth_failed', timestamp: 9_000, detail: 'settings' }]);
+    expect(isSession(after)).toBe(true);
+  });
+
   it('keeps earlier events and stays valid', () => {
     const twice = recordAuthFailed(recordAuthFailed(createSession('s', 1), 2_000), 3_000);
     expect(twice.events.map((e) => e.timestamp)).toEqual([2_000, 3_000]);

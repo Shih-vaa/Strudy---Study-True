@@ -81,6 +81,75 @@ body {
   justify-content: space-between;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 560px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 48px 32px 32px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-header h1 {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+}
+
+.settings .setup-card {
+  width: 100%;
+}
+
+.card-title {
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.check {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 15px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.check small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form-ok {
+  margin: 0;
+  color: var(--ok);
+  font-size: 14px;
+}
+
 .setup {
   display: grid;
   min-height: 100%;

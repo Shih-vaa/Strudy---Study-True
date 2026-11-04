@@ -26,7 +26,7 @@ export default function PasswordDialog({ onCancel }: PasswordDialogProps) {
       await flushForExit();
       const ok = await window.api.verifyAndQuit(password, useSessionStore.getState().session);
       if (ok) return; // main is quitting; stay in the "closing" state
-      useSessionStore.getState().logAuthFailure(Date.now());
+      useSessionStore.getState().logAuthFailure(Date.now(), 'exit');
       setError('Wrong password.');
     } catch {
       setError('Something went wrong. Try again.');

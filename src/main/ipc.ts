@@ -8,11 +8,20 @@ import {
 } from 'electron';
 import { VIDEO_EXTENSIONS } from '../shared/media';
 import { isSession } from '../shared/session';
+import { applySettingsPatch } from '../shared/settings';
 import type { AppInfo, IpcChannel, IpcInvokeMap, OpenDialogKind } from '../shared/types';
-import { isPasswordSet, setupPassword, verifyAndQuit } from './auth';
+import {
+  changePassword,
+  isPasswordSet,
+  isSettingsUnlocked,
+  lockSettings,
+  setupPassword,
+  unlockSettings,
+  verifyAndQuit,
+} from './auth';
 import { suspendFocusLock } from './focusLock';
 import { grantMedia, listVideosInFolder } from './media';
-import { getPosition, listSessions, saveSession, setPosition } from './store';
+import { getPosition, getSettings, listSessions, saveSession, setPosition, setSettings } from './store';
 import { isAppUrl } from './window';
 
 type Handler<K extends IpcChannel> = (
@@ -101,4 +110,16 @@ export function registerIpc(): void {
   handle('auth:isSetup', () => isPasswordSet());
   handle('auth:setup', (_event, password) => setupPassword(password));
   handle('auth:verifyAndQuit', (_event, password, session) => verifyAndQuit(password, session));
+  handle('auth:verify', (_event, password) => unlockSettings(password));
+  handle('auth:lock', () => lockSettings());
+  handle('auth:changePassword', (_event, current, next) => changePassword(current, next));
+
+  handle('store:getSettings', () => getSettings());
+  handle('store:setSettings', (_event, patch) => {
+    // Changing settings can weaken the lock, so it needs the password entered recently.
+    if (!isSettingsUnlocked()) throw new Error('Settings are locked');
+    const next = applySettingsPatch(getSettings(), patch);
+    setSettings(next);
+    return next;
+  });
 }

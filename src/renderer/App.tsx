@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import PasswordDialog from './components/PasswordDialog';
 import Library from './screens/Library';
 import Player from './screens/Player';
+import Settings from './screens/Settings';
 import SetupPassword from './screens/SetupPassword';
 import { useSessionStore } from './state/useSessionStore';
 import { usePowerState } from './timer/usePowerState';
@@ -35,7 +36,7 @@ export default function App() {
     <>
       {/* inert: nothing behind the dialog can be focused or clicked while it is open */}
       <div className="app-root" inert={exitDialogOpen}>
-        {screen === 'player' ? <Player /> : <Library />}
+        {screen === 'player' ? <Player /> : screen === 'settings' ? <Settings /> : <Library />}
       </div>
       {exitDialogOpen && <PasswordDialog onCancel={closeExitDialog} />}
     </>

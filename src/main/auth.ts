@@ -18,6 +18,43 @@ export async function setupPassword(password: unknown): Promise<void> {
   setPasswordHash(await hashPassword(password));
 }
 
+/** How long the Settings screen stays unlocked after the password was entered. */
+const SETTINGS_UNLOCK_MS = 5 * 60 * 1000;
+let settingsUnlockedUntil = 0;
+
+/** Settings can be changed only shortly after the password was entered (or while none exists). */
+export function isSettingsUnlocked(): boolean {
+  return getPasswordHash() === null || Date.now() < settingsUnlockedUntil;
+}
+
+/** Checks the password in main; if right, unlocks changing settings for a few minutes. */
+export async function unlockSettings(password: unknown): Promise<boolean> {
+  const stored = getPasswordHash();
+  if (stored === null) return true;
+  if (typeof password !== 'string' || !(await verifyPassword(password, stored))) return false;
+  settingsUnlockedUntil = Date.now() + SETTINGS_UNLOCK_MS;
+  return true;
+}
+
+export function lockSettings(): void {
+  settingsUnlockedUntil = 0;
+}
+
+/**
+ * Replaces the exit password. The current one is required again (not just the unlock), and
+ * the new one must meet the same rules as at setup. False means the current one was wrong.
+ */
+export async function changePassword(current: unknown, next: unknown): Promise<boolean> {
+  const stored = getPasswordHash();
+  if (stored === null) throw new Error('No exit password is set yet');
+  if (typeof current !== 'string' || !(await verifyPassword(current, stored))) return false;
+  if (typeof next !== 'string') throw new Error('Invalid password');
+  const problem = validatePasswordLength(next);
+  if (problem) throw new Error(problem);
+  setPasswordHash(await hashPassword(next));
+  return true;
+}
+
 /**
  * Checks the password here in main, never in the renderer. On success it ends and saves the
  * session first (the renderer sends its latest copy), then allows the app to quit.

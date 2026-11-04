@@ -30,9 +30,13 @@ export function upsertSession(sessions: readonly Session[], incoming: Session): 
   return sessions.map((s, i) => (i === index ? incoming : s));
 }
 
-/** Logs a wrong exit-password attempt. */
-export function recordAuthFailed(session: Session, at: number): Session {
-  return { ...session, events: [...session.events, { type: 'auth_failed', timestamp: at }] };
+/** Logs a wrong password attempt; `detail` says where it was typed (exit, settings...). */
+export function recordAuthFailed(session: Session, at: number, detail?: string): Session {
+  const event: StudyEvent =
+    detail === undefined
+      ? { type: 'auth_failed', timestamp: at }
+      : { type: 'auth_failed', timestamp: at, detail };
+  return { ...session, events: [...session.events, event] };
 }
 
 const isTime = (value: unknown): value is number =>

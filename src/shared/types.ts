@@ -12,6 +12,12 @@ export interface AppInfo {
 
 export type OpenDialogKind = 'file' | 'folder';
 
+/** Changed from the Settings screen, which needs the exit password. */
+export interface Settings {
+  /** Take focus back shortly after the window loses it. */
+  focusLock: boolean;
+}
+
 export type StudyEventType = 'focus_lost' | 'presence_missed' | 'auth_failed';
 
 export interface StudyEvent {
@@ -56,6 +62,15 @@ export interface IpcInvokeMap {
    * (the reply is true just before it does). False means a wrong password.
    */
   'auth:verifyAndQuit': { args: [password: string, session: Session | null]; result: boolean };
+  /** Checks the password in main; if right, settings can be changed for a few minutes. */
+  'auth:verify': { args: [password: string]; result: boolean };
+  /** Locks settings again (leaving the Settings screen). */
+  'auth:lock': { args: []; result: void };
+  /** Verifies the current password, then replaces it. False means the current one was wrong. */
+  'auth:changePassword': { args: [current: string, next: string]; result: boolean };
+  'store:getSettings': { args: []; result: Settings };
+  /** Rejects unless unlocked with auth:verify. Returns the settings now in force. */
+  'store:setSettings': { args: [patch: Partial<Settings>]; result: Settings };
 }
 
 export type IpcChannel = keyof IpcInvokeMap;
@@ -85,6 +100,13 @@ export interface StrudyApi {
   setPassword(password: string): Promise<void>;
   /** Resolves false for a wrong password; on success the app quits right after resolving true. */
   verifyAndQuit(password: string, session: Session | null): Promise<boolean>;
+  /** Unlocks the Settings screen for a few minutes. Resolves false for a wrong password. */
+  unlockSettings(password: string): Promise<boolean>;
+  lockSettings(): Promise<void>;
+  /** Resolves false if `current` is not the exit password. */
+  changePassword(current: string, next: string): Promise<boolean>;
+  getSettings(): Promise<Settings>;
+  setSettings(patch: Partial<Settings>): Promise<Settings>;
   /** Subscribes to a main-process event. Returns an unsubscribe function. */
   onEvent(channel: IpcEventChannel, callback: () => void): () => void;
 }

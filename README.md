@@ -68,13 +68,22 @@ On first run Strudy asks you to create an **exit password** (at least 6 characte
 
 There is no way to change or recover the password in this version.
 
+### Settings
+
+The **Settings** button on the library opens a screen that asks for the exit password first, because settings can switch the locks off. It stays unlocked for five minutes, or until you leave the screen. The check is made in the main process, so the screen cannot be talked into changing anything while locked.
+
+- **Bring Strudy back to the front when I leave it** (on by default). Turn it off and leaving still pauses the video, stops the clock and is logged; Strudy just does not pull itself back.
+- **Change the exit password.** It asks for the current password again, and the new one needs at least 6 characters, entered twice.
+
+Wrong passwords typed here are logged like wrong ones at the exit dialog.
+
 ### Sessions
 
 A session starts when the first video plays after launch. The running session is saved every 10 seconds, when you leave the player, and straight away when something is logged, so a hard power-off still keeps everything up to the last save. A session that never ended cleanly keeps `endedAt: null`, which makes an abrupt stop visible. **Today** adds up every session that started today.
 
 ## Getting started
 
-**Requirements:** Node.js 22 or newer and npm. macOS is the primary platform. Windows 10/11 is intended to work but has not been tested yet.
+**Requirements:** Node.js 22 or newer and npm. macOS is the only platform being built and tested for now. Windows is not a priority at the moment and has not been tested.
 
 ```bash
 git clone https://github.com/Shih-vaa/Strudy---Study-True.git
@@ -113,7 +122,7 @@ STRUDY_EXIT_LOCK=0 npm run dev    # let the window close without the password
 
 - Strudy is a **deterrent and a logger**, not security. Anyone can still shut the lid, power off, Force Quit it (`Cmd+Option+Esc` on macOS, Task Manager on Windows), or delete `strudy.json`. The log is what makes that visible: a session that never ended has no `endedAt`.
 - A plain `kill` (SIGTERM) does not close a locked Strudy either, because Electron answers it by closing the window and the lock refuses. Use Force Quit or `kill -9`.
-- **Forgot the password?** Quit Strudy by Force Quit, then delete the `auth` entry in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password.
+- **Forgot the password?** Settings cannot help, since it needs the password too. Quit Strudy by Force Quit, then delete the `auth` entry in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password.
 - Taking focus back is best effort. Until kiosk mode is built, `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.
