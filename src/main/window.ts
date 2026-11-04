@@ -1,9 +1,11 @@
 import { BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { devToolsAllowed } from './devFlags';
 import { sendToWindow } from './events';
 import { watchFocus } from './focusLock';
 import { allowQuit, isQuitAllowed } from './quitGate';
+import { blockShortcuts } from './shortcuts';
 
 const RENDERER_INDEX = join(__dirname, '../renderer/index.html');
 
@@ -30,11 +32,16 @@ export function createMainWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Off in the installed app: no DevTools window by any route (shortcut, menu or code).
+      devTools: devToolsAllowed(),
     },
   });
 
   win.once('ready-to-show', () => win.show());
   watchFocus(win);
+  // Reload would wipe the "Come back to study" screen. The menu has no Reload either (see
+  // menuTemplate.ts); this stops the keys themselves as a second layer.
+  if (!devToolsAllowed()) blockShortcuts(win.webContents);
 
   // The close button, Cmd+W, Alt+F4 and Cmd+Q (app.quit closes every window first) all end
   // up here. Without the exit password they are blocked, and the renderer opens the dialog.

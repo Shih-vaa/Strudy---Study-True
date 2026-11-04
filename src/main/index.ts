@@ -1,7 +1,9 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow, Menu, session } from 'electron';
 import { MEDIA_SCHEME } from '../shared/media';
+import { devToolsAllowed } from './devFlags';
 import { registerIpc } from './ipc';
 import { registerMediaProtocol, registerMediaScheme } from './media';
+import { buildMenuTemplate } from './menuTemplate';
 import { watchPower } from './power';
 import { createMainWindow, devServerUrl } from './window';
 
@@ -48,6 +50,7 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     blockNetworkRequests();
+    Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate(devToolsAllowed())));
     registerMediaProtocol();
     registerIpc();
     watchPower();

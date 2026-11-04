@@ -2,7 +2,7 @@
 
 A focused desktop player for lecture videos stored on your computer. Strudy tracks **real** study time: a second only counts while you are actually watching, and anything that looks like not studying (paused, window unfocused, minimized, computer asleep) stops the clock.
 
-> **Status: work in progress.** The player, hold-to-boost, the study timer, focus handling, the exit password, a Settings screen, "Still studying?" checks and a Summary screen with CSV export are done. Kiosk mode was skipped by choice. The Mac installer is still to come. See the [roadmap](#roadmap).
+> **Status: work in progress.** The player, hold-to-boost, the study timer, focus handling, the exit password, a Settings screen, "Still studying?" checks, a Summary screen with CSV export, and reload/DevTools blocking are done. Kiosk mode was skipped by choice. The Mac installer is still to come. See the [roadmap](#roadmap).
 
 ## Why it exists
 
@@ -54,6 +54,16 @@ When you leave Strudy while a lecture is open (switching apps, clicking another 
 4. A **"Come back to study"** screen covers the window, with how long you were away. Nothing plays or responds behind it until you press **Resume studying** (click, `Enter` or `Space`). The video resumes only if it was playing when you left; a video you had paused yourself stays paused.
 
 Leaving again before you dismiss the screen counts as a new loss. Leaving Strudy while on the library (no lecture open) is not counted. The window does not fight Strudy's own file-open dialog.
+
+### Reload and DevTools are blocked
+
+Reload would wipe the "Come back to study" screen, and DevTools would let someone poke at the running app, so in the installed app:
+
+- The menu has no **View** menu: no Reload, Force Reload or Toggle Developer Tools. It keeps **Edit** (copy, paste and select-all, needed in the password fields), **Window**, and **Exit Strudy**.
+- The shortcuts do nothing: `Cmd+R`, `Cmd+Shift+R`, `F5`, `Cmd+Option+I`/`J`/`C`, `F12` and their Windows/Linux equivalents. They are caught on the physical key, so a Mac's Option layer cannot slip past.
+- DevTools are switched off completely, so there is no route to them by shortcut, menu or code.
+
+Running from source keeps all of these for development; `STRUDY_DEV_TOOLS=0 npm run dev` makes a source run behave like the installed app.
 
 ### "Still studying?" checks
 
@@ -130,6 +140,7 @@ While developing you will not want the locks in your way. These switches work on
 STRUDY_FOCUS_LOCK=0 npm run dev   # stop Strudy pulling itself back to the front (pausing, logging and the overlay still work)
 STRUDY_EXIT_LOCK=0 npm run dev    # let the window close without the password
 STRUDY_PRESENCE_FAST=1 npm run dev # "Still studying?" every 4 to 6 seconds of studying, 4 seconds to answer
+STRUDY_DEV_TOOLS=0 npm run dev    # behave like the installed app: no reload, no DevTools, no View menu
 ```
 
 `Ctrl+C` in the terminal always stops `npm run dev` (it force-quits Strudy if the window has not closed after two seconds).
@@ -146,7 +157,7 @@ STRUDY_PRESENCE_FAST=1 npm run dev # "Still studying?" every 4 to 6 seconds of s
 - Strudy is a **deterrent and a logger**, not security. Anyone can still shut the lid, power off, Force Quit it (`Cmd+Option+Esc` on macOS, Task Manager on Windows), or delete `strudy.json`. The log is what makes that visible: a session that never ended has no `endedAt`.
 - A plain `kill` (SIGTERM) does not close a locked Strudy either, because Electron answers it by closing the window and the lock refuses. Use Force Quit or `kill -9`.
 - **Forgot the password?** Settings cannot help, since it needs the password too. Quit Strudy by Force Quit, then delete the `auth` entry in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password.
-- Taking focus back is best effort. There is no kiosk mode (skipped by choice), so `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. Reload and DevTools shortcuts are not blocked yet either. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
+- Taking focus back is best effort. There is no kiosk mode (skipped by choice), so `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. Someone comfortable with Terminal could still start the app with debugging switches; closing that is a job for the installer step. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.
 - Chromium pauses video that has no audio track when the window is hidden. Normal lectures have audio, so this mostly shows up with silent test clips.
@@ -162,7 +173,7 @@ STRUDY_PRESENCE_FAST=1 npm run dev # "Still studying?" every 4 to 6 seconds of s
 | 4 | Study timer, unit tests, on-screen clock | Done |
 | 5 | Focus handling: pause on blur, overlay, log | Done |
 | 6 | Exit password, hashed storage, close interception | Done |
-| 7 | Kiosk mode and shortcut blocking | Kiosk skipped by choice; blocking reload/DevTools still open |
+| 7 | Kiosk mode and shortcut blocking | Reload/DevTools blocking done; kiosk skipped by choice |
 | 8 | "Still studying?" presence checks | Done |
 | 9 | Session summary, 7-day chart, CSV export | Done |
 | 10 | Packaging (dmg and Windows installer) and platform notes | Planned |
@@ -173,7 +184,7 @@ STRUDY_PRESENCE_FAST=1 npm run dev # "Still studying?" every 4 to 6 seconds of s
 
 ```
 src/
-  main/       Electron main process: window, IPC, media protocol, storage, exit password, power and focus events
+  main/       Electron main process: window, menu, shortcuts, IPC, media protocol, storage, exit password, power and focus events
   preload/    The small typed API exposed to the UI (contextBridge)
   shared/     Types and helpers used by both sides
   renderer/   React UI
