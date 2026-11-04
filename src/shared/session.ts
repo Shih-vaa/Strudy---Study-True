@@ -1,7 +1,7 @@
 // Runtime helpers for sessions, shared by main (validation) and renderer (creation).
 import type { Session, StudyEvent, StudyEventType } from './types';
 
-const EVENT_TYPES: readonly StudyEventType[] = ['focus_lost', 'presence_missed', 'auth_failed'];
+const EVENT_TYPES: readonly StudyEventType[] = ['focus_lost', 'presence_missed', 'auth_failed', 'password_reset'];
 
 export function createSession(id: string, startedAt: number): Session {
   return {
@@ -37,6 +37,11 @@ export function recordPresenceMissed(session: Session, at: number): Session {
     presenceMissedCount: session.presenceMissedCount + 1,
     events: [...session.events, { type: 'presence_missed', timestamp: at }],
   };
+}
+
+/** The exit password was reset with the recovery key: the owner should be able to see that. */
+export function recordPasswordReset(session: Session, at: number): Session {
+  return { ...session, events: [...session.events, { type: 'password_reset', timestamp: at }] };
 }
 
 /** Logs a wrong password attempt; `detail` says where it was typed (exit, settings...). */

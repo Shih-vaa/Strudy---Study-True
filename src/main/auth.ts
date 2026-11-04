@@ -3,19 +3,66 @@ import { validatePasswordLength } from '../shared/auth';
 import { isSession } from '../shared/session';
 import { hashPassword, verifyPassword } from './password';
 import { allowQuit } from './quitGate';
-import { getPasswordHash, saveSession, setPasswordHash } from './store';
+import { generateRecoveryKey, normalizeRecoveryKey } from './recoveryKey';
+import { getPasswordHash, getRecoveryHash, saveSession, setPasswordHash, setRecoveryHash } from './store';
 
 export function isPasswordSet(): boolean {
   return getPasswordHash() !== null;
 }
 
-/** First-run setup. Refuses to replace an existing password. */
-export async function setupPassword(password: unknown): Promise<void> {
+/**
+ * Makes a new recovery key, stores only its hash (replacing any earlier key, which stops
+ * working), and returns the key to show once. It is never stored or logged in the clear.
+ */
+async function issueRecoveryKey(): Promise<string> {
+  const key = generateRecoveryKey();
+  const compact = normalizeRecoveryKey(key);
+  if (compact === null) throw new Error('Could not make a recovery key');
+  setRecoveryHash(await hashPassword(compact));
+  return key;
+}
+
+/**
+ * First-run setup. Refuses to replace an existing password. Returns the recovery key, which is
+ * shown once: it is the only way to reset a forgotten password from inside the app.
+ */
+export async function setupPassword(password: unknown): Promise<string> {
   if (isPasswordSet()) throw new Error('An exit password is already set');
   if (typeof password !== 'string') throw new Error('Invalid password');
   const problem = validatePasswordLength(password);
   if (problem) throw new Error(problem);
   setPasswordHash(await hashPassword(password));
+  return issueRecoveryKey();
+}
+
+/** Whether a recovery key exists. */
+export function hasRecoveryKey(): boolean {
+  return getRecoveryHash() !== null;
+}
+
+/** A new recovery key, replacing the old one. The caller must have checked the settings are unlocked. */
+export function newRecoveryKey(): Promise<string> {
+  if (!isPasswordSet()) throw new Error('No exit password is set yet');
+  return issueRecoveryKey();
+}
+
+/**
+ * Resets a forgotten exit password with the recovery key. A wrong key (or no key ever created)
+ * returns null and changes nothing. On success the password is replaced, settings are locked, and
+ * a fresh recovery key is returned: the one just used no longer works.
+ */
+export async function recoverPassword(recoveryKey: unknown, next: unknown): Promise<string | null> {
+  if (!isPasswordSet()) throw new Error('No exit password is set yet');
+  const stored = getRecoveryHash();
+  const compact = typeof recoveryKey === 'string' ? normalizeRecoveryKey(recoveryKey) : null;
+  if (stored === null || compact === null || !(await verifyPassword(compact, stored))) return null;
+
+  if (typeof next !== 'string') throw new Error('Invalid password');
+  const problem = validatePasswordLength(next);
+  if (problem) throw new Error(problem);
+  setPasswordHash(await hashPassword(next));
+  lockSettings();
+  return issueRecoveryKey();
 }
 
 /** How long the Settings screen stays unlocked after the password was entered. */

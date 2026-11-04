@@ -1,5 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { createSession, isSession, recordAuthFailed, recordPresenceMissed, upsertSession } from './session';
+import {
+  createSession,
+  isSession,
+  recordAuthFailed,
+  recordPasswordReset,
+  recordPresenceMissed,
+  upsertSession,
+} from './session';
+
+describe('recordPasswordReset', () => {
+  it('logs a password_reset event with its timestamp and changes nothing else', () => {
+    const before = { ...createSession('s', 1), studyMs: 700, presenceMissedCount: 2 };
+    const after = recordPasswordReset(before, 8_000);
+    expect(after.events).toEqual([{ type: 'password_reset', timestamp: 8_000 }]);
+    expect(after).toMatchObject({ studyMs: 700, presenceMissedCount: 2, focusLostCount: 0 });
+    expect(before.events).toEqual([]);
+  });
+
+  it('produces a session isSession accepts', () => {
+    expect(isSession(recordPasswordReset(createSession('s', 1), 5))).toBe(true);
+  });
+});
 
 describe('recordPresenceMissed', () => {
   it('counts the miss and logs a presence_missed event with its timestamp', () => {

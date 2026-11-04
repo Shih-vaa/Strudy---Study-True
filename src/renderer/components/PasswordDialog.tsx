@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { flushForExit } from '../state/exitFlush';
 import { useSessionStore } from '../state/useSessionStore';
+import RecoverPassword from './RecoverPassword';
 
 interface PasswordDialogProps {
   onCancel: () => void;
@@ -14,6 +15,7 @@ export default function PasswordDialog({ onCancel }: PasswordDialogProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [recovering, setRecovering] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const submit = async (event: FormEvent) => {
@@ -39,6 +41,18 @@ export default function PasswordDialog({ onCancel }: PasswordDialogProps) {
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && !busy) onCancel();
   };
+
+  // Escape is not offered while resetting: a new recovery key is shown only once, and it must not
+  // be dismissed by accident.
+  if (recovering) {
+    return (
+      <div className="dialog-backdrop">
+        <div className="reset-panel">
+          <RecoverPassword onDone={() => setRecovering(false)} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dialog-backdrop">
@@ -70,6 +84,10 @@ export default function PasswordDialog({ onCancel }: PasswordDialogProps) {
             {error}
           </p>
         )}
+
+        <button className="link-button" type="button" disabled={busy} onClick={() => setRecovering(true)}>
+          Forgot password?
+        </button>
 
         <div className="dialog-actions">
           <button className="btn" type="button" disabled={busy} onClick={onCancel}>

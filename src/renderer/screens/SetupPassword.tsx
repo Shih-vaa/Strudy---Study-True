@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { checkNewPassword, PASSWORD_MIN_LENGTH } from '../../shared/auth';
+import RecoveryKeyDisplay from '../components/RecoveryKeyDisplay';
 import { ipcErrorMessage } from '../ipcError';
 
 interface SetupPasswordProps {
@@ -12,6 +13,8 @@ export default function SetupPassword({ onDone }: SetupPasswordProps) {
   const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Set once the password is saved: the recovery key is shown before moving on.
+  const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -24,13 +27,26 @@ export default function SetupPassword({ onDone }: SetupPasswordProps) {
     setBusy(true);
     setError(null);
     try {
-      await window.api.setPassword(password);
-      onDone();
+      setRecoveryKey(await window.api.setPassword(password));
     } catch (e) {
       setError(ipcErrorMessage(e, 'Could not save the password.'));
       setBusy(false);
     }
   };
+
+  if (recoveryKey !== null) {
+    return (
+      <main className="setup">
+        <RecoveryKeyDisplay
+          recoveryKey={recoveryKey}
+          heading="Save your recovery key"
+          intro="If the exit password is ever forgotten, this key is the only way to reset it from inside Strudy. Keep it somewhere safe, away from the person using Strudy. It is shown only once."
+          continueLabel="Continue"
+          onContinue={onDone}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="setup">

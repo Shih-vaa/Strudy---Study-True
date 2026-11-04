@@ -18,6 +18,7 @@ const EVENT_LABELS: Record<StudyEvent['type'], string> = {
   focus_lost: 'Left the app',
   presence_missed: 'Missed a "Still studying?" check',
   auth_failed: 'Wrong password',
+  password_reset: 'Password reset with the recovery key',
 };
 
 const timeOf = (ms: number): string =>

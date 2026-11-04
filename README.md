@@ -85,7 +85,16 @@ On first run Strudy asks you to create an **exit password** (at least 6 characte
 - Shutting down, restarting or logging out is never blocked.
 - Until a password exists there is nothing to ask for, so a half-set-up app can always be closed.
 
-There is no way to change or recover the password in this version.
+### Forgot the password? The recovery key
+
+When the password is first set, Strudy shows a **recovery key** once, such as `K7Q2M-X9RTB-4WNHD-PE3FA`, and will not let you continue until you confirm you have saved it. Only a scrambled copy is kept, so it cannot be shown again.
+
+- On the exit box (or the Settings unlock screen) choose **Forgot password?**, enter the key and a new password. The key is checked in the main process, like the password.
+- A key works **once**: resetting makes a fresh key, shown the same way, and the old one stops working.
+- A reset is **logged** (it shows in the Summary as "Password reset with the recovery key"), and a wrong key counts as a failed attempt.
+- Anyone who holds the key can reset the password, so treat it like the password itself. **Do the first-run setup yourself, not the person who will be studying, and keep the key away from them.**
+- If a password was set before this existed, or you lose the key, make a new one in **Settings → Recovery key** (this needs the password).
+- If both the password and the key are lost, see the last resort under [Known limitations](#known-limitations).
 
 ### Settings
 
@@ -93,6 +102,7 @@ The **Settings** button on the library opens a screen that asks for the exit pas
 
 - **Bring Strudy back to the front when I leave it** (on by default). Turn it off and leaving still pauses the video, stops the clock and is logged; Strudy just does not pull itself back.
 - **"Still studying?" checks.** The shortest and longest gap, in whole minutes of studying (1 to 180). They are saved together, and the shortest cannot be longer than the longest.
+- **Recovery key.** Shows whether one is set and can make a new one (which stops the old one working).
 - **Change the exit password.** It asks for the current password again, and the new one needs at least 6 characters, entered twice.
 
 Wrong passwords typed here are logged like wrong ones at the exit dialog.
@@ -166,7 +176,7 @@ The app is built and signed by `electron-builder`; the disk image is then made b
    xattr -dr com.apple.quarantine /Applications/Strudy.app
    ```
 
-3. The first run asks for the exit password.
+3. The first run asks for the exit password and then shows a **recovery key**. Do this step yourself rather than the person who will be studying, and save the key somewhere safe: it is the way back in if the password is forgotten.
 
 To **update**, install the newer `.dmg` over the old app: your history and password are kept. To **uninstall**, drag Strudy to the Trash; delete `~/Library/Application Support/Strudy` as well to erase everything it stored.
 
@@ -183,7 +193,7 @@ This is still a deterrent, not a vault: someone with admin rights on the Mac can
 ## Privacy and data
 
 - **Local only.** There are no network calls. The renderer runs under a strict Content Security Policy (`connect-src 'none'`), and the main process cancels any request that is not local.
-- **What is stored:** resume positions, session records (start and end time, study time, the videos watched, focus losses and wrong-password attempts) and a scrypt hash of the exit password. Nothing else.
+- **What is stored:** resume positions, session records (start and end time, study time, the videos watched, focus losses and wrong-password attempts), a scrypt hash of the exit password and one of the recovery key (never either in the clear). Nothing else.
 - **Where:** `strudy.json` in the app data folder: `~/Library/Application Support/Strudy` on macOS, `%APPDATA%\Strudy` on Windows. Delete the file to erase everything.
 - **Local files:** videos are served through a private `strudy-media://` protocol, and only files you picked in the open dialog this launch. `webSecurity` stays on.
 
@@ -191,7 +201,7 @@ This is still a deterrent, not a vault: someone with admin rights on the Mac can
 
 - Strudy is a **deterrent and a logger**, not security. Anyone can still shut the lid, power off, Force Quit it (`Cmd+Option+Esc` on macOS, Task Manager on Windows), or delete `strudy.json`. The log is what makes that visible: a session that never ended has no `endedAt`.
 - A plain `kill` (SIGTERM) does not close a locked Strudy either, because Electron answers it by closing the window and the lock refuses. Use Force Quit or `kill -9`.
-- **Forgot the password?** Settings cannot help, since it needs the password too. Quit Strudy by Force Quit, then delete the `auth` entry in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password.
+- **Lost the password and the recovery key?** That is the last resort: quit Strudy by Force Quit, then delete the `auth` and `recovery` entries in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password and shows a new recovery key.
 - Taking focus back is best effort. There is no kiosk mode (skipped by choice), so `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. The installed app refuses debugging switches; a run from source (`npm run dev`) does not, by design. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.

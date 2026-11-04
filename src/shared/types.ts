@@ -33,7 +33,7 @@ export interface PresenceConfig {
   responseMs: number;
 }
 
-export type StudyEventType = 'focus_lost' | 'presence_missed' | 'auth_failed';
+export type StudyEventType = 'focus_lost' | 'presence_missed' | 'auth_failed' | 'password_reset';
 
 export interface StudyEvent {
   type: StudyEventType;
@@ -72,8 +72,20 @@ export interface IpcInvokeMap {
   'sessions:exportCsv': { args: []; result: string | null };
   /** Has the first-run exit password been created? */
   'auth:isSetup': { args: []; result: boolean };
-  /** First-run only: stores a scrypt hash of the password. Rejects if one already exists. */
-  'auth:setup': { args: [password: string]; result: void };
+  /**
+   * First-run only: stores a scrypt hash of the password and makes a recovery key. Rejects if a
+   * password already exists. Resolves the recovery key, which is shown once.
+   */
+  'auth:setup': { args: [password: string]; result: string };
+  /**
+   * Resets a forgotten password with the recovery key. Null for a wrong key. On success resolves a
+   * fresh recovery key (the one used stops working).
+   */
+  'auth:recover': { args: [recoveryKey: string, newPassword: string]; result: string | null };
+  /** Needs settings unlocked: is there a recovery key? */
+  'auth:hasRecovery': { args: []; result: boolean };
+  /** Needs settings unlocked: makes a new recovery key (the old one stops working) and returns it once. */
+  'auth:newRecoveryKey': { args: []; result: string };
   /**
    * Verified in main. On success the given session is ended and saved, then the app quits
    * (the reply is true just before it does). False means a wrong password.
@@ -117,7 +129,13 @@ export interface StrudyApi {
   /** Shows a save dialog and writes every session as CSV. Resolves the path, or null if cancelled. */
   exportSessionsCsv(): Promise<string | null>;
   isPasswordSet(): Promise<boolean>;
-  setPassword(password: string): Promise<void>;
+  /** First-run only. Resolves the recovery key, which is shown once. */
+  setPassword(password: string): Promise<string>;
+  /** Resolves null for a wrong recovery key, otherwise a fresh recovery key. */
+  recoverPassword(recoveryKey: string, newPassword: string): Promise<string | null>;
+  hasRecoveryKey(): Promise<boolean>;
+  /** Makes a new recovery key (needs settings unlocked); the old one stops working. */
+  newRecoveryKey(): Promise<string>;
   /** Resolves false for a wrong password; on success the app quits right after resolving true. */
   verifyAndQuit(password: string, session: Session | null): Promise<boolean>;
   /** Unlocks the Settings screen for a few minutes. Resolves false for a wrong password. */

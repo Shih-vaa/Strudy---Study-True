@@ -10,6 +10,8 @@ interface StoreSchema {
   sessions: Session[];
   /** The exit password's scrypt hash; null until first-run setup. */
   auth: StoredPasswordHash | null;
+  /** The recovery key's scrypt hash (never the key); null until one is created. */
+  recovery: StoredPasswordHash | null;
   settings: Settings;
 }
 
@@ -22,7 +24,7 @@ let store: Store<StoreSchema> | null = null;
 function getStore(): Store<StoreSchema> {
   store ??= new Store<StoreSchema>({
     name: 'strudy',
-    defaults: { positions: {}, sessions: [], auth: null, settings: DEFAULT_SETTINGS },
+    defaults: { positions: {}, sessions: [], auth: null, recovery: null, settings: DEFAULT_SETTINGS },
   });
   return store;
 }
@@ -51,6 +53,16 @@ export function getPasswordHash(): StoredPasswordHash | null {
 
 export function setPasswordHash(hash: StoredPasswordHash): void {
   getStore().set('auth', hash);
+}
+
+/** The stored recovery key hash, or null if there is none (or the stored value is unusable). */
+export function getRecoveryHash(): StoredPasswordHash | null {
+  const stored = getStore().get('recovery');
+  return isStoredPasswordHash(stored) ? stored : null;
+}
+
+export function setRecoveryHash(hash: StoredPasswordHash): void {
+  getStore().set('recovery', hash);
 }
 
 /** Always a complete, valid Settings, whatever is (or is not) in the file. */

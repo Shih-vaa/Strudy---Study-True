@@ -12,9 +12,12 @@ import { applySettingsPatch } from '../shared/settings';
 import type { AppInfo, IpcChannel, IpcInvokeMap, OpenDialogKind } from '../shared/types';
 import {
   changePassword,
+  hasRecoveryKey,
   isPasswordSet,
   isSettingsUnlocked,
   lockSettings,
+  newRecoveryKey,
+  recoverPassword,
   setupPassword,
   unlockSettings,
   verifyAndQuit,
@@ -116,6 +119,16 @@ export function registerIpc(): void {
   handle('auth:verify', (_event, password) => unlockSettings(password));
   handle('auth:lock', () => lockSettings());
   handle('auth:changePassword', (_event, current, next) => changePassword(current, next));
+  handle('auth:recover', (_event, recoveryKey, newPassword) => recoverPassword(recoveryKey, newPassword));
+  handle('auth:hasRecovery', () => {
+    if (!isSettingsUnlocked()) throw new Error('Settings are locked');
+    return hasRecoveryKey();
+  });
+  handle('auth:newRecoveryKey', () => {
+    // A new key replaces the old one, so it needs the password entered recently.
+    if (!isSettingsUnlocked()) throw new Error('Settings are locked');
+    return newRecoveryKey();
+  });
 
   handle('presence:getConfig', () => getPresenceConfig());
   handle('store:getSettings', () => getSettings());

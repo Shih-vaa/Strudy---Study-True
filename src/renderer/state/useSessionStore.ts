@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import { createSession, recordAuthFailed, recordPresenceMissed } from '../../shared/session';
+import {
+  createSession,
+  recordAuthFailed,
+  recordPasswordReset,
+  recordPresenceMissed,
+} from '../../shared/session';
 import type { OpenDialogKind, Session } from '../../shared/types';
 import { recordFocusLost, recordFocusReturned, type FocusLoss } from '../focus/focusLoss';
 import { clampSpeed, nextSpeed } from '../player/speed';
@@ -69,6 +74,8 @@ interface SessionState {
   presenceMissed: (at: number) => void;
   /** A wrong password was entered: log it on the running session; `detail` says where. */
   logAuthFailure: (at: number, detail?: string) => void;
+  /** The exit password was reset with the recovery key: log it so the owner can see. */
+  logPasswordReset: (at: number) => void;
 }
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
@@ -181,4 +188,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
 
   logAuthFailure: (at, detail) =>
     set(({ session }) => ({ session: recordAuthFailed(session ?? newSession(), at, detail) })),
+
+  logPasswordReset: (at) =>
+    set(({ session }) => ({ session: recordPasswordReset(session ?? newSession(), at) })),
 }));
