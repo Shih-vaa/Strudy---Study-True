@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import { devSwitchOff } from './devFlags';
 import { sendToWindow } from './events';
+import { createFocusGate } from './focusGate';
 import { isQuitting } from './quitGate';
 import { getSettings } from './store';
 
@@ -31,6 +32,26 @@ export function suspendFocusLock(): () => void {
   };
 }
 
+/** How long after a system prompt closes to wait for the window to get its focus back before judging. */
+const AFTER_PROMPT_MS = 1500;
+
+const promptGate = createFocusGate();
+let recheck: (() => void) | null = null;
+
+/**
+ * Call when Strudy itself opens a macOS system prompt (the camera permission). That prompt takes the
+ * window's focus, which is not the person leaving: while it is up, the window losing focus is not
+ * reported and not fought. Returns the function to call when the prompt closes. A moment after the
+ * last prompt closes, if the window still does not have focus (she switched to another app while the
+ * prompt was up), that is then reported as leaving, like any other.
+ */
+export function holdFocusEvents(): () => void {
+  const release = promptGate.hold();
+  return () => {
+    if (release()) setTimeout(() => recheck?.(), AFTER_PROMPT_MS);
+  };
+}
+
 function regainFocus(win: BrowserWindow): void {
   if (win.isDestroyed()) return;
   if (win.isMinimized()) win.restore();
@@ -54,7 +75,7 @@ export function watchFocus(win: BrowserWindow): void {
     }
   };
 
-  win.on('blur', () => {
+  const onLeft = (): void => {
     sendToWindow(win, 'window:blur');
     if (!regainEnabled() || isQuitting()) return;
     cancelPending();
@@ -63,12 +84,26 @@ export function watchFocus(win: BrowserWindow): void {
       if (isQuitting() || suspensions > 0 || win.isDestroyed() || win.isFocused()) return;
       regainFocus(win);
     }, REFOCUS_DELAY_MS);
+  };
+
+  win.on('blur', () => {
+    // Our own system prompt took the focus: that is not leaving.
+    if (promptGate.held) return;
+    onLeft();
   });
+
+  // After such a prompt: if the window did not get its focus back, she did leave meanwhile.
+  recheck = () => {
+    if (!win.isDestroyed() && !win.isFocused() && !promptGate.held) onLeft();
+  };
 
   win.on('focus', () => {
     cancelPending();
     sendToWindow(win, 'window:focus');
   });
 
-  win.on('closed', cancelPending);
+  win.on('closed', () => {
+    cancelPending();
+    recheck = null;
+  });
 }

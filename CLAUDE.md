@@ -64,6 +64,7 @@ Implementation rules:
 ### 4.4 Focus lock
 
 - Focus loss (`blur` on BrowserWindow): pause video, stop timer, log `focus_lost` with timestamp, show an overlay "Come back to study" when focus returns, and try `win.focus()` / `win.moveTop()` shortly after.
+  - One exception: the macOS prompt for Strudy's own camera permission (section 4.6) takes the window's focus, and that is not leaving. While it is up the blur is not reported (`src/main/focusGate.ts`, `holdFocusEvents` in `focusLock.ts`); 1.5 s after it closes the window is checked again, and if it still has no focus that is reported as leaving. Nothing else is exempt.
 - Kiosk mode (toggle in settings, default ON during a session):
   - macOS: `kiosk: true` / fullscreen with presentation options so Cmd+Tab, Dock, and menu bar are hidden. Verify it.
   - Windows: `kiosk: true`, `alwaysOnTop: true` ('screen-saver' level). Be honest in the README that Ctrl+Alt+Del and the Win key can't be fully blocked without native hooks. Don't attempt low-level keyboard hooks in v1.

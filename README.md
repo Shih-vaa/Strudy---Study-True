@@ -215,6 +215,8 @@ The app is built and signed by `electron-builder`; the disk image is then made b
 
 3. The first run asks for the exit password and then shows a **recovery key**. Do this step yourself rather than the person who will be studying, and save the key somewhere safe: it is the way back in if the password is forgotten.
 
+4. **If you switch on the camera check** (Settings), the first time the camera starts macOS asks **"Allow “Strudy.app” to access your camera?"** with Strudy's own explanation. Choose **Allow**. If someone chose Don't Allow, turn it on under System Settings → Privacy & Security → Camera. That prompt takes the window's focus, and Strudy does not count that as leaving: while its own camera prompt is up, losing focus is ignored, and 1.5 seconds after the prompt closes Strudy checks again in case she switched to another app meanwhile. (Checked on the installed Apple silicon app: the prompt names Strudy, macOS's own log shows the request, the prompt, and "Allowed (User Consent)", and the saved session has no "left the app" entry from the prompt.)
+
 To **update**, install the newer `.dmg` over the old app: your history and password are kept. To **uninstall**, drag Strudy to the Trash; delete `~/Library/Application Support/Strudy` as well to erase everything it stored.
 
 ### What the installed app does differently
@@ -226,6 +228,8 @@ The installed app is locked down further than a run from source:
 - DevTools and reload are off, and the development switches (`STRUDY_FOCUS_LOCK=0` and the rest) are ignored.
 
 This is still a deterrent, not a vault: someone with admin rights on the Mac can replace or delete the app itself.
+
+**About macOS's privacy log.** If you watch macOS's permission log (`log stream --predicate 'subsystem == "com.apple.TCC"'`) while Strudy runs, you will see it *look up* the status of several services (screen recording, microphone, calendars and more), each answered "Unknown", with no prompt and nothing granted. Strudy's own code uses none of them, and the page's permission handler refuses everything except the camera. Chromium, which Electron is built on, makes some of these lookups by itself: an empty Electron window with none of Strudy's code makes the screen-recording and keyboard-listening ones too. The only prompt Strudy ever causes is the camera one.
 
 ## Privacy and data
 

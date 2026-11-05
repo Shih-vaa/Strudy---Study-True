@@ -37,8 +37,14 @@ mac:
   hardenedRuntime: false
   # The text macOS shows in its own "Strudy would like to access the camera" prompt. The camera is
   # only ever used by the visible camera check, which the owner switches on in Settings.
+  # Electron's default text for the services below says "This app needs access to ...", which would
+  # mislead if macOS ever showed it. Strudy uses none of them, and says so.
   extendInfo:
     NSCameraUsageDescription: Strudy uses the camera only if the camera check is switched on in Settings, to see whether someone is in front of it while a lecture plays. Nothing is recorded, saved or sent.
+    NSMicrophoneUsageDescription: Strudy never uses the microphone.
+    NSAudioCaptureUsageDescription: Strudy never captures audio.
+    NSBluetoothAlwaysUsageDescription: Strudy never uses Bluetooth.
+    NSBluetoothPeripheralUsageDescription: Strudy never uses Bluetooth.
   # The architectures come from the command line (npm run pack builds both): release/mac-arm64 is
   # for Apple silicon (M1 and later), release/mac is for Intel.
   target: dir

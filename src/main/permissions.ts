@@ -1,5 +1,6 @@
 import { session, systemPreferences } from 'electron';
 import { devSwitchOn } from './devFlags';
+import { holdFocusEvents } from './focusLock';
 import { isPermissionAllowed } from './permissionPolicy';
 
 /**
@@ -44,7 +45,12 @@ export function registerPermissionHandlers(
     if (process.platform === 'darwin' && !fakeCameraRequested()) {
       // Ask macOS itself. A "no" there (now or earlier) comes back as false, and the page then
       // reports that the camera cannot be used.
-      systemPreferences.askForMediaAccess('camera').then(callback, () => callback(false));
+      // The prompt takes the window's focus: that is not the person leaving.
+      const promptClosed = holdFocusEvents();
+      systemPreferences
+        .askForMediaAccess('camera')
+        .then(callback, () => callback(false))
+        .finally(promptClosed);
       return;
     }
     callback(true);
