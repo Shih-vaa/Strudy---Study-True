@@ -113,8 +113,11 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
     probe.muted = true;
     probe.playsInline = true;
 
-    // The grace period starts when the camera does: if no one ever shows up, that is "away" too.
-    store().setCamera({ ...STARTING_CAMERA, noFaceSince: performance.now() });
+    // The grace period starts with the first frame the camera delivers, not when it is asked for:
+    // opening the camera can wait on macOS's permission prompt, and loading the detector takes a
+    // moment, and neither should use up the grace period. (If no one ever shows up once frames
+    // arrive, that is "away" too. If no frames ever arrive, the clock simply does not count.)
+    store().setCamera(STARTING_CAMERA);
 
     const fail = (reason: string) =>
       store().applyCamera({ kind: 'failed', reason }, config, performance.now(), Date.now());

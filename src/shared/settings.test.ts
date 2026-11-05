@@ -6,8 +6,8 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({ focusLock: true, presenceMinMinutes: 8, presenceMaxMinutes: 15 });
   });
 
-  it('leaves the camera check off, with a 45 second grace period ready for when it is switched on', () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ cameraCheck: false, cameraGraceSeconds: 45 });
+  it('leaves the camera check off, with a 10 second grace period ready for when it is switched on', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ cameraCheck: false, cameraGraceSeconds: 10 });
   });
 });
 
@@ -56,7 +56,7 @@ describe('normalizeSettings', () => {
 
   it('reads settings saved before the camera check existed as "camera off"', () => {
     const old = { focusLock: false, presenceMinMinutes: 3, presenceMaxMinutes: 5 };
-    expect(normalizeSettings(old)).toEqual({ ...old, cameraCheck: false, cameraGraceSeconds: 45 });
+    expect(normalizeSettings(old)).toEqual({ ...old, cameraCheck: false, cameraGraceSeconds: 10 });
   });
 
   it('never turns the camera on from a wrongly typed value', () => {
@@ -67,7 +67,7 @@ describe('normalizeSettings', () => {
 
   it.each([9, 301, 45.5, '45', Number.NaN, null])('resets a grace period of %s on its own', (bad) => {
     const result = normalizeSettings({ focusLock: false, cameraCheck: true, cameraGraceSeconds: bad });
-    expect(result.cameraGraceSeconds).toBe(45);
+    expect(result.cameraGraceSeconds).toBe(10);
     expect(result.cameraCheck).toBe(true);
     expect(result.focusLock).toBe(false);
   });
@@ -118,6 +118,7 @@ describe('applySettingsPatch', () => {
 
   it('sets the grace period within 10 to 300 seconds', () => {
     expect(applySettingsPatch(current, { cameraGraceSeconds: 10 }).cameraGraceSeconds).toBe(10);
+    expect(applySettingsPatch(current, { cameraGraceSeconds: 45 }).cameraGraceSeconds).toBe(45);
     expect(applySettingsPatch(current, { cameraGraceSeconds: 300 }).cameraGraceSeconds).toBe(300);
     for (const bad of [9, 301, 0, -5, 45.5, '45', Number.NaN, null]) {
       expect(() => applySettingsPatch(current, { cameraGraceSeconds: bad })).toThrow(/whole seconds from 10 to 300/);

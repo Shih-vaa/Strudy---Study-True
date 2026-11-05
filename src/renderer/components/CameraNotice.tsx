@@ -20,7 +20,7 @@ export default function CameraNotice({ graceSeconds, onAcknowledge }: CameraNoti
           </li>
           <li>
             Your study clock counts only while you are there. If no one is seen for {graceSeconds} seconds, the
-            clock stops and the video pauses; it carries on when you are back. Looking down to take notes is fine.
+            clock stops and the video pauses; it carries on when you are back. A quick look down to take notes is fine.
           </li>
           <li>Only the person with the exit password can switch this off.</li>
         </ul>

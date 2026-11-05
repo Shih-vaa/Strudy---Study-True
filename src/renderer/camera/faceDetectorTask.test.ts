@@ -3,60 +3,102 @@ import { wrapFaceTask, type FaceTask } from './faceDetectorTask';
 
 const video = (width = 320, height = 240) => ({ videoWidth: width, videoHeight: height }) as HTMLVideoElement;
 
+/** A canvas stand-in that records what was drawn on it and what size it had when it was looked at. */
+function fakeCanvasFactory(options: { context?: boolean } = {}) {
+  const made: { width: number; height: number; drawn: unknown[]; widthWhenLookedAt?: number }[] = [];
+  const makeCanvas = () => {
+    const canvas = {
+      width: 300,
+      height: 150,
+      drawn: [] as unknown[],
+      getContext: () =>
+        options.context === false ? null : { drawImage: (source: unknown) => canvas.drawn.push(source) },
+    };
+    made.push(canvas);
+    return canvas as unknown as HTMLCanvasElement;
+  };
+  return { makeCanvas, made };
+}
+
 function fakeTask(detections: readonly unknown[] = []) {
-  const calls: number[] = [];
+  const seen: { drawn: number; width: number; height: number }[] = [];
   let closed = 0;
   const task: FaceTask = {
-    detectForVideo: (_video, timestampMs) => {
-      calls.push(timestampMs);
+    detect: (image) => {
+      const c = image as unknown as { drawn: unknown[]; width: number; height: number };
+      seen.push({ drawn: c.drawn.length, width: c.width, height: c.height });
       return { detections };
     },
     close: () => {
       closed++;
     },
   };
-  return { task, calls, closed: () => closed };
+  return { task, seen, closed: () => closed };
 }
 
 describe('wrapFaceTask', () => {
   it('says yes when the task found a face, and no when it found none', async () => {
-    expect(await wrapFaceTask(fakeTask([{}]).task, () => 1000).hasFace(video())).toBe(true);
-    expect(await wrapFaceTask(fakeTask([{}, {}]).task, () => 1000).hasFace(video())).toBe(true);
-    expect(await wrapFaceTask(fakeTask([]).task, () => 1000).hasFace(video())).toBe(false);
+    expect(await wrapFaceTask(fakeTask([{}]).task, fakeCanvasFactory().makeCanvas).hasFace(video())).toBe(true);
+    expect(await wrapFaceTask(fakeTask([{}, {}]).task, fakeCanvasFactory().makeCanvas).hasFace(video())).toBe(true);
+    expect(await wrapFaceTask(fakeTask([]).task, fakeCanvasFactory().makeCanvas).hasFace(video())).toBe(false);
   });
 
-  it('does not run the task before the camera has a picture', async () => {
-    const { task, calls } = fakeTask([{}]);
-    const detector = wrapFaceTask(task, () => 1000);
+  it('shows the task the frame on a canvas of the same size as the video, not the video itself', async () => {
+    const { task, seen } = fakeTask([{}]);
+    const frame = video(320, 240);
+    const factory = fakeCanvasFactory();
+    await wrapFaceTask(task, factory.makeCanvas).hasFace(frame);
+    expect(seen).toEqual([{ drawn: 1, width: 320, height: 240 }]);
+    expect(factory.made[0]?.drawn).toEqual([frame]);
+  });
+
+  it('empties the canvas straight after looking, so the picture is not kept', async () => {
+    const factory = fakeCanvasFactory();
+    await wrapFaceTask(fakeTask([{}]).task, factory.makeCanvas).hasFace(video());
+    expect(factory.made).toHaveLength(1);
+    expect(factory.made[0]).toMatchObject({ width: 0, height: 0 });
+  });
+
+  it('uses a fresh canvas for every look, so nothing carries over from one frame to the next', async () => {
+    const factory = fakeCanvasFactory();
+    const detector = wrapFaceTask(fakeTask([]).task, factory.makeCanvas);
+    await detector.hasFace(video());
+    await detector.hasFace(video());
+    expect(factory.made).toHaveLength(2);
+    expect(factory.made[0]).not.toBe(factory.made[1]);
+  });
+
+  it('does not run the task, or make a canvas, before the camera has a picture', async () => {
+    const { task, seen } = fakeTask([{}]);
+    const factory = fakeCanvasFactory();
+    const detector = wrapFaceTask(task, factory.makeCanvas);
     expect(await detector.hasFace(video(0, 0))).toBe(false);
     expect(await detector.hasFace(video(320, 0))).toBe(false);
-    expect(calls).toEqual([]);
-  });
-
-  it('gives the task timestamps that always go up, even if the clock stands still or goes back', async () => {
-    const { task, calls } = fakeTask();
-    const times = [1000, 1000, 999, 2500.4, 2500.4];
-    let i = 0;
-    const detector = wrapFaceTask(task, () => times[i++] ?? 0);
-    for (let n = 0; n < times.length; n++) await detector.hasFace(video());
-    expect(calls).toEqual([1000, 1001, 1002, 2500, 2501]);
-    for (let n = 1; n < calls.length; n++) expect(calls[n]!).toBeGreaterThan(calls[n - 1]!);
+    expect(seen).toEqual([]);
+    expect(factory.made).toEqual([]);
   });
 
   it('closes the task', () => {
     const { task, closed } = fakeTask();
-    wrapFaceTask(task, () => 0).close();
+    wrapFaceTask(task, fakeCanvasFactory().makeCanvas).close();
     expect(closed()).toBe(1);
   });
 
-  it('passes a failure of the task on, so the camera check can report it', async () => {
+  it('still empties the canvas when the task fails, and passes the failure on', () => {
+    const factory = fakeCanvasFactory();
     const task: FaceTask = {
-      detectForVideo: () => {
+      detect: () => {
         throw new Error('wasm crashed');
       },
       close: () => undefined,
     };
-    // hasFace is synchronous inside, so it throws before returning the promise: callers await it in a try.
-    expect(() => wrapFaceTask(task, () => 1).hasFace(video())).toThrow('wasm crashed');
+    expect(() => wrapFaceTask(task, factory.makeCanvas).hasFace(video())).toThrow('wasm crashed');
+    expect(factory.made[0]).toMatchObject({ width: 0, height: 0 });
+  });
+
+  it('reports a canvas that cannot be drawn on, and empties it', async () => {
+    const factory = fakeCanvasFactory({ context: false });
+    await expect(wrapFaceTask(fakeTask([{}]).task, factory.makeCanvas).hasFace(video())).rejects.toThrow(/canvas/i);
+    expect(factory.made[0]).toMatchObject({ width: 0, height: 0 });
   });
 });

@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   presenceMinMinutes: 8,
   presenceMaxMinutes: 15,
   cameraCheck: false,
-  cameraGraceSeconds: 45,
+  cameraGraceSeconds: 10,
 };
 
 const isMinutes = (value: unknown): value is number =>
