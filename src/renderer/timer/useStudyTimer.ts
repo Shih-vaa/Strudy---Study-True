@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isCameraOk } from '../camera/cameraPresence';
 import { isPresenceOk } from '../presence/presenceCheck';
 import { registerExitFlush } from '../state/exitFlush';
 import { useSessionStore } from '../state/useSessionStore';
@@ -30,6 +31,7 @@ function readConditions(video: HTMLVideoElement): StudyConditions {
     windowVisible: document.visibilityState === 'visible',
     presenceOk: isPresenceOk(useSessionStore.getState().presence),
     systemActive: useSessionStore.getState().systemActive,
+    cameraOk: isCameraOk(useSessionStore.getState().camera, performance.now()),
   };
 }
 
@@ -79,7 +81,13 @@ export function useStudyTimer(video: HTMLVideoElement | null, path: string): voi
     window.addEventListener('blur', onChange);
     document.addEventListener('visibilitychange', onChange);
     const unsubscribe = useSessionStore.subscribe((state, prev) => {
-      if (state.systemActive !== prev.systemActive || state.presence.phase !== prev.presence.phase) onChange();
+      if (
+        state.systemActive !== prev.systemActive ||
+        state.presence.phase !== prev.presence.phase ||
+        state.camera.phase !== prev.camera.phase
+      ) {
+        onChange();
+      }
     });
     // Before exiting, bank the part of the current second that has not been ticked yet.
     const unregisterExitFlush = registerExitFlush(onChange);

@@ -19,6 +19,9 @@ const EVENT_LABELS: Record<StudyEvent['type'], string> = {
   presence_missed: 'Missed a "Still studying?" check',
   auth_failed: 'Wrong password',
   password_reset: 'Password reset with the recovery key',
+  person_away: 'No one in front of the camera: study clock stopped',
+  person_returned: 'Back in front of the camera',
+  camera_unavailable: 'Camera could not be used: study clock stopped',
 };
 
 const timeOf = (ms: number): string =>
@@ -84,6 +87,13 @@ export default function Summary() {
             <Stat label="Left the app" value={String(today.focusLost)} note={today.focusLost === 1 ? 'time today' : 'times today'} />
             <Stat label="Missed checks" value={String(today.presenceMissed)} note="today" />
             <Stat label="Sessions" value={String(today.sessions)} note="today" />
+            {today.personAway > 0 && (
+              <Stat
+                label="Away from camera"
+                value={String(today.personAway)}
+                note={today.personAway === 1 ? 'time today' : 'times today'}
+              />
+            )}
           </section>
 
           <section aria-label="Last 7 days" className="panel">
@@ -183,6 +193,7 @@ function SessionItem({ row }: { row: SessionRow }) {
         </span>
         <span className="session-meta">Left {row.focusLost}×</span>
         <span className="session-meta">Missed {row.presenceMissed}</span>
+        {row.personAway > 0 && <span className="session-meta">Away {row.personAway}×</span>}
         <span className={`session-status ${status.className}`}>{status.text}</span>
       </div>
       {row.events.length > 0 && (

@@ -22,6 +22,14 @@ export interface Settings {
    */
   presenceMinMinutes: number;
   presenceMaxMinutes: number;
+  /**
+   * The camera check: while a lecture plays, the camera looks for a face and the study clock counts
+   * only while someone is in front of it. Off by default. Nothing is recorded, saved or sent: each
+   * frame is looked at and thrown away.
+   */
+  cameraCheck: boolean;
+  /** How long nobody may be seen before the clock stops (note-taking is not penalized). Whole seconds. */
+  cameraGraceSeconds: number;
 }
 
 /** The presence-check timings in force, in milliseconds. */
@@ -33,7 +41,17 @@ export interface PresenceConfig {
   responseMs: number;
 }
 
-export type StudyEventType = 'focus_lost' | 'presence_missed' | 'auth_failed' | 'password_reset';
+export type StudyEventType =
+  | 'focus_lost'
+  | 'presence_missed'
+  | 'auth_failed'
+  | 'password_reset'
+  /** The camera check saw no one for longer than the grace period: the clock stopped. */
+  | 'person_away'
+  /** Someone was seen again after `person_away`; the detail says how long they were gone. */
+  | 'person_returned'
+  /** The camera check is on but the camera could not be used (denied, missing, busy). */
+  | 'camera_unavailable';
 
 export interface StudyEvent {
   type: StudyEventType;

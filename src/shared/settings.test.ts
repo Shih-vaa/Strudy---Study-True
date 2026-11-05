@@ -3,13 +3,23 @@ import { applySettingsPatch, DEFAULT_SETTINGS, normalizeSettings } from './setti
 
 describe('DEFAULT_SETTINGS', () => {
   it('turns the focus lock on and checks in every 8 to 15 minutes of studying', () => {
-    expect(DEFAULT_SETTINGS).toEqual({ focusLock: true, presenceMinMinutes: 8, presenceMaxMinutes: 15 });
+    expect(DEFAULT_SETTINGS).toMatchObject({ focusLock: true, presenceMinMinutes: 8, presenceMaxMinutes: 15 });
+  });
+
+  it('leaves the camera check off, with a 45 second grace period ready for when it is switched on', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ cameraCheck: false, cameraGraceSeconds: 45 });
   });
 });
 
 describe('normalizeSettings', () => {
   it('keeps valid stored settings', () => {
-    const stored = { focusLock: false, presenceMinMinutes: 3, presenceMaxMinutes: 5 };
+    const stored = {
+      focusLock: false,
+      presenceMinMinutes: 3,
+      presenceMaxMinutes: 5,
+      cameraCheck: true,
+      cameraGraceSeconds: 90,
+    };
     expect(normalizeSettings(stored)).toEqual(stored);
   });
 
@@ -41,6 +51,24 @@ describe('normalizeSettings', () => {
     const result = normalizeSettings({ focusLock: false, ...stored });
     expect(result.presenceMinMinutes).toBe(8);
     expect(result.presenceMaxMinutes).toBe(15);
+    expect(result.focusLock).toBe(false);
+  });
+
+  it('reads settings saved before the camera check existed as "camera off"', () => {
+    const old = { focusLock: false, presenceMinMinutes: 3, presenceMaxMinutes: 5 };
+    expect(normalizeSettings(old)).toEqual({ ...old, cameraCheck: false, cameraGraceSeconds: 45 });
+  });
+
+  it('never turns the camera on from a wrongly typed value', () => {
+    for (const bad of ['true', 1, null, {}]) {
+      expect(normalizeSettings({ cameraCheck: bad }).cameraCheck).toBe(false);
+    }
+  });
+
+  it.each([9, 301, 45.5, '45', Number.NaN, null])('resets a grace period of %s on its own', (bad) => {
+    const result = normalizeSettings({ focusLock: false, cameraCheck: true, cameraGraceSeconds: bad });
+    expect(result.cameraGraceSeconds).toBe(45);
+    expect(result.cameraCheck).toBe(true);
     expect(result.focusLock).toBe(false);
   });
 
@@ -83,9 +111,23 @@ describe('applySettingsPatch', () => {
     }
   });
 
+  it('switches the camera check on and off', () => {
+    expect(applySettingsPatch(current, { cameraCheck: true }).cameraCheck).toBe(true);
+    expect(applySettingsPatch({ ...current, cameraCheck: true }, { cameraCheck: false }).cameraCheck).toBe(false);
+  });
+
+  it('sets the grace period within 10 to 300 seconds', () => {
+    expect(applySettingsPatch(current, { cameraGraceSeconds: 10 }).cameraGraceSeconds).toBe(10);
+    expect(applySettingsPatch(current, { cameraGraceSeconds: 300 }).cameraGraceSeconds).toBe(300);
+    for (const bad of [9, 301, 0, -5, 45.5, '45', Number.NaN, null]) {
+      expect(() => applySettingsPatch(current, { cameraGraceSeconds: bad })).toThrow(/whole seconds from 10 to 300/);
+    }
+  });
+
   it.each([
     ['an unknown key', { nope: true }],
     ['a wrongly typed value', { focusLock: 'off' }],
+    ['a wrongly typed camera switch', { cameraCheck: 'on' }],
     ['null', null],
     ['an array', [true]],
     ['a string', 'focusLock'],

@@ -4,6 +4,11 @@ import { upsertSession } from '../../shared/session';
 import type { Session, StudyEvent } from '../../shared/types';
 import { startOfLocalDay } from '../timer/clock';
 
+/** How many times the camera check saw no one for longer than the grace period. */
+export function countPersonAway(events: readonly StudyEvent[]): number {
+  return events.filter((e) => e.type === 'person_away').length;
+}
+
 export interface DaySummary {
   /** Local midnight of the day, epoch ms. */
   dayStart: number;
@@ -11,16 +16,26 @@ export interface DaySummary {
   sessions: number;
   focusLost: number;
   presenceMissed: number;
+  /** Times the camera check found no one there (0 when the check is off). */
+  personAway: number;
 }
 
 export function summarizeDay(sessions: readonly Session[], dayStart: number): DaySummary {
-  const summary: DaySummary = { dayStart, studyMs: 0, sessions: 0, focusLost: 0, presenceMissed: 0 };
+  const summary: DaySummary = {
+    dayStart,
+    studyMs: 0,
+    sessions: 0,
+    focusLost: 0,
+    presenceMissed: 0,
+    personAway: 0,
+  };
   for (const s of sessions) {
     if (startOfLocalDay(s.startedAt) !== dayStart) continue;
     summary.studyMs += s.studyMs;
     summary.sessions += 1;
     summary.focusLost += s.focusLostCount;
     summary.presenceMissed += s.presenceMissedCount;
+    summary.personAway += countPersonAway(s.events);
   }
   return summary;
 }
@@ -50,6 +65,8 @@ export interface SessionRow {
   videoCount: number;
   focusLost: number;
   presenceMissed: number;
+  /** Times the camera check found no one there. */
+  personAway: number;
   events: StudyEvent[];
   /** This is the session in progress right now, so it has not ended yet. */
   running: boolean;
@@ -67,6 +84,7 @@ export function sessionRows(sessions: readonly Session[], runningId: string | nu
       videoCount: s.videosWatched.length,
       focusLost: s.focusLostCount,
       presenceMissed: s.presenceMissedCount,
+      personAway: countPersonAway(s.events),
       events: s.events,
       running: s.id === runningId,
     }));

@@ -21,6 +21,8 @@ export interface StudyConditions {
   presenceOk: boolean;
   /** The system is not suspended or locked. */
   systemActive: boolean;
+  /** The camera check, when switched on, sees someone in front of the camera (always true when it is off). */
+  cameraOk: boolean;
 }
 
 export function isStudying(conditions: StudyConditions): boolean {
@@ -29,7 +31,8 @@ export function isStudying(conditions: StudyConditions): boolean {
     conditions.windowFocused &&
     conditions.windowVisible &&
     conditions.presenceOk &&
-    conditions.systemActive
+    conditions.systemActive &&
+    conditions.cameraOk
   );
 }
 
@@ -41,6 +44,7 @@ export function intersect(a: StudyConditions, b: StudyConditions): StudyConditio
     windowVisible: a.windowVisible && b.windowVisible,
     presenceOk: a.presenceOk && b.presenceOk,
     systemActive: a.systemActive && b.systemActive,
+    cameraOk: a.cameraOk && b.cameraOk,
   };
 }
 

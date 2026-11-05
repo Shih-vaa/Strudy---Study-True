@@ -2,10 +2,21 @@ import { create } from 'zustand';
 import {
   createSession,
   recordAuthFailed,
+  recordCameraUnavailable,
   recordPasswordReset,
+  recordPersonAway,
+  recordPersonReturned,
   recordPresenceMissed,
 } from '../../shared/session';
 import type { OpenDialogKind, Session } from '../../shared/types';
+import {
+  cameraChange,
+  reduceCamera,
+  STARTING_CAMERA,
+  type CameraConfig,
+  type CameraEvent,
+  type CameraState,
+} from '../camera/cameraPresence';
 import { recordFocusLost, recordFocusReturned, type FocusLoss } from '../focus/focusLoss';
 import { clampSpeed, nextSpeed } from '../player/speed';
 import { IDLE_PRESENCE, type PresenceState } from '../presence/presenceCheck';
@@ -16,8 +27,12 @@ const newSession = (): Session => createSession(crypto.randomUUID(), Date.now())
 
 /** A dialog or overlay is up, so the player's keyboard shortcuts must stay quiet. */
 export const isModalOpen = (
-  state: Pick<SessionState, 'focusLoss' | 'exitDialogOpen' | 'presence'>,
-): boolean => state.focusLoss !== null || state.exitDialogOpen || state.presence.phase !== 'idle';
+  state: Pick<SessionState, 'focusLoss' | 'exitDialogOpen' | 'presence' | 'cameraNoticeOpen'>,
+): boolean =>
+  state.focusLoss !== null ||
+  state.exitDialogOpen ||
+  state.presence.phase !== 'idle' ||
+  state.cameraNoticeOpen;
 
 interface SessionState {
   screen: Screen;
@@ -42,6 +57,13 @@ interface SessionState {
   presence: PresenceState;
   /** Study time (ms into the session) at which the next check comes up; null until scheduled. */
   presenceDueMs: number | null;
+  /**
+   * The camera check. Starts as "starting", which does not count: the player sets it to
+   * "disabled" when Settings has the check off, so it can never be skipped by accident.
+   */
+  camera: CameraState;
+  /** The one-time "the camera check is on" notice is showing. */
+  cameraNoticeOpen: boolean;
 
   /** Opens a picker; resolves true if a playlist was loaded. */
   openMedia: (kind: OpenDialogKind) => Promise<boolean>;
@@ -76,6 +98,14 @@ interface SessionState {
   logAuthFailure: (at: number, detail?: string) => void;
   /** The exit password was reset with the recovery key: log it so the owner can see. */
   logPasswordReset: (at: number) => void;
+  /** Replaces the camera state outright (switching the check off, or back to "starting"). */
+  setCamera: (camera: CameraState) => void;
+  setCameraNoticeOpen: (open: boolean) => void;
+  /**
+   * Feeds the camera check one look (or failure). `now` is performance.now(), `at` the epoch time
+   * for the log. Going away, coming back and a broken camera are written to the session's events.
+   */
+  applyCamera: (event: CameraEvent, config: CameraConfig, now: number, at: number) => void;
 }
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
@@ -92,6 +122,8 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   exitDialogOpen: false,
   presence: IDLE_PRESENCE,
   presenceDueMs: null,
+  camera: STARTING_CAMERA,
+  cameraNoticeOpen: false,
 
   openMedia: async (kind) => {
     const paths = await window.api.openMedia(kind);
@@ -191,4 +223,24 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
 
   logPasswordReset: (at) =>
     set(({ session }) => ({ session: recordPasswordReset(session ?? newSession(), at) })),
+
+  setCamera: (camera) => set({ camera }),
+
+  setCameraNoticeOpen: (open) => set({ cameraNoticeOpen: open }),
+
+  applyCamera: (event, config, now, at) =>
+    set(({ camera, session }) => {
+      const next = reduceCamera(camera, event, now, config);
+      if (next === camera) return {};
+      const change = cameraChange(camera, next, now);
+      if (!change) return { camera: next };
+      const current = session ?? newSession();
+      const logged =
+        change.kind === 'away'
+          ? recordPersonAway(current, at, change.absentMs)
+          : change.kind === 'returned'
+            ? recordPersonReturned(current, at, change.awayMs)
+            : recordCameraUnavailable(current, at, change.reason);
+      return { camera: next, session: logged };
+    }),
 }));

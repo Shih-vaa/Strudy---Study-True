@@ -6,7 +6,7 @@
 
 A desktop video player for locally stored lecture files (e.g. downloaded PW lectures). It tracks real study time and discourages distraction: the app can be locked in kiosk mode, and anything that looks like not-studying (video paused, window unfocused, no human presence) stops the timer and is logged.
 
-**Context:** The owner (Apoorv, on a Mac) wants his younger sister to study seriously from downloaded lectures. She knows the app exists. The goal is honest, visible tracking plus friction against distraction, not spyware. Do not add webcam, screen capture, keylogging, or any hidden monitoring.
+**Context:** The owner (Apoorv, on a Mac) wants his younger sister to study seriously from downloaded lectures. She knows the app exists. The goal is honest, visible tracking plus friction against distraction, not spyware. Do not add screen capture, keylogging, or any hidden monitoring. The camera is allowed for exactly one purpose, the visible, announced, local-only presence check in section 4.6, which the owner switches on in Settings (updated 2026-11-04 at the owner's request); no other use of the camera.
 
 ## 2. Platforms
 
@@ -23,6 +23,7 @@ A desktop video player for locally stored lecture files (e.g. downloaded PW lect
 - Storage: a local JSON file via `electron-store` (simple), with sessions stored as an array. SQLite is not needed.
 - Password hashing: Node `crypto.scrypt` with a random salt (no native modules).
 - Security: `contextIsolation: true`, `nodeIntegration: false`, a preload script exposing a minimal typed API via `contextBridge`.
+- Camera check (section 4.6): `@mediapipe/tasks-vision` (Apache-2.0, a build-time dependency bundled into the renderer) with the BlazeFace short-range model, both shipped inside the app and loaded from its own files. Approved by the owner on 2026-11-05. It has a usage logger that cannot be switched off; the CSP (`connect-src 'self'`) and the main-process request guard refuse it. Do not loosen the CSP further (`src/shared/csp.ts` is pinned by a test).
 
 ## 4. Features (v1)
 
@@ -82,6 +83,18 @@ It is a deterrent and logger. Anyone can still shut the laptop or hard power off
 - Summary screen after exit/on demand: today's study minutes, per-session list, focus-loss count, and a 7-day bar chart of study minutes.
 - Export sessions as CSV.
 - Everything stays local. No network calls, no accounts, no telemetry.
+
+### 4.6 Camera presence check (opt-in, owner-controlled)
+
+Added at the owner's request so that leaving a video playing in an empty room does not earn study time. It is the only use of the camera, and it must stay honest:
+
+- **Off by default.** Only the owner can switch it on or off, in Settings (behind the exit password). The main process refuses camera access unless the setting is on.
+- **Visible, always.** While it runs, a live preview and a status line are on screen, so the macOS camera light is never the only sign. The first time it starts, the person studying must read and accept a plain notice saying what it does.
+- **Local only.** A frame is looked at to answer one question, "is a face in view?", and dropped. Never record, save, copy to disk, upload, or keep frames or face data. The only thing logged is "no one seen for N s" and "back after N s". No network calls.
+- **Studying means someone is there.** The study clock (condition `cameraOk`) counts only while a face is in view. No face for the grace period (Settings, default 45 s, 10 to 300) means `away`: clock stops, video pauses, `person_away` is logged; seeing a face again for two frames in a row resumes it and logs `person_returned`. Two frames in a row are needed everywhere (to count someone as present, to come back, to clear a run of empty frames): one stray detection is ignored. The detector's confidence threshold is 0.7 (at MediaPipe's default 0.5 it saw "faces" in a plain test pattern). Looking down to take notes is within the grace period and is not penalized.
+- **Fails closed.** If the camera or detector cannot start, is denied, is disconnected, or stops delivering frames, the clock does not count and `camera_unavailable` is logged. It does not silently count.
+- **It cannot prove attention.** A face detector sees that a face is there, not that anyone is learning, and a photo can fool it. Say so in the README and Settings; do not oversell it.
+- Pure logic in `src/renderer/camera/cameraPresence.ts` with unit tests. The detector (`loadFaceDetector.ts`, MediaPipe on the CPU) sits behind the `FaceDetector` interface (`faceDetector.ts`) so it can be replaced. Permissions are an allow-list (`src/main/permissionPolicy.ts`): video only, the app's own page only, never the microphone.
 
 ## 5. Architecture
 
@@ -163,13 +176,14 @@ Register a custom protocol (e.g. `strudy-media://`) in main that streams the fil
 - Quitting the app via Cmd+Q, Alt+F4, or the window close button is blocked without the password.
 - Closing and reopening restores the last position of each video.
 - No outbound network requests anywhere.
+- With the camera check on: the clock does not advance while no face is in view past the grace period, while the camera is starting or unavailable, or when frames stop arriving; the preview and status are always visible; nothing is stored or sent. With it off, the camera is never opened.
 - Unit tests pass for `studyTimer`.
 
 ## 8. Rules for the AI working on this repo
 
 - Ask before adding dependencies beyond the stack in section 3.
 - Keep platform-specific code in clearly marked branches. Don't break Windows while working on Mac.
-- Don't add any hidden monitoring (screenshots, webcam, keylogging, network reporting).
+- Don't add any hidden monitoring (screenshots, keylogging, network reporting, or any use of the camera other than the visible section 4.6 check).
 - Prefer small, typed, testable modules. Keep the timer logic pure.
 - After each milestone, tell me exactly how to run and manually verify it.
 - If something can't be reliably blocked on an OS, say so plainly and log it in the README instead of faking it.

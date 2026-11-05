@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   createSession,
+  formatSpan,
   isSession,
   recordAuthFailed,
+  recordCameraUnavailable,
   recordPasswordReset,
+  recordPersonAway,
+  recordPersonReturned,
   recordPresenceMissed,
   upsertSession,
 } from './session';
@@ -19,6 +23,57 @@ describe('recordPasswordReset', () => {
 
   it('produces a session isSession accepts', () => {
     expect(isSession(recordPasswordReset(createSession('s', 1), 5))).toBe(true);
+  });
+});
+
+describe('formatSpan', () => {
+  it.each([
+    [0, '0 s'],
+    [52_000, '52 s'],
+    [59_400, '59 s'],
+    [60_000, '1 min 0 s'],
+    [192_000, '3 min 12 s'],
+    [3_599_000, '59 min 59 s'],
+    [3_720_000, '1 h 2 min'],
+  ])('writes %d ms as %s', (ms, text) => {
+    expect(formatSpan(ms)).toBe(text);
+  });
+
+  it('never goes negative or non-finite', () => {
+    expect(formatSpan(-5000)).toBe('0 s');
+    expect(formatSpan(Number.NaN)).toBe('0 s');
+    expect(formatSpan(Number.POSITIVE_INFINITY)).toBe('0 s');
+  });
+});
+
+describe('camera events', () => {
+  const base = { ...createSession('s', 1), studyMs: 900, focusLostCount: 1 };
+
+  it('logs person_away with how long no one was seen, and changes nothing else', () => {
+    const after = recordPersonAway(base, 9_000, 52_000);
+    expect(after.events).toEqual([{ type: 'person_away', timestamp: 9_000, detail: 'no one seen for 52 s' }]);
+    expect(after).toMatchObject({ studyMs: 900, focusLostCount: 1, presenceMissedCount: 0 });
+    expect(base.events).toEqual([]);
+  });
+
+  it('logs person_returned with how long they were gone', () => {
+    const after = recordPersonReturned(base, 9_000, 192_000);
+    expect(after.events).toEqual([{ type: 'person_returned', timestamp: 9_000, detail: 'away for 3 min 12 s' }]);
+  });
+
+  it('logs camera_unavailable with the reason', () => {
+    const after = recordCameraUnavailable(base, 9_000, 'Camera access was denied');
+    expect(after.events).toEqual([
+      { type: 'camera_unavailable', timestamp: 9_000, detail: 'Camera access was denied' },
+    ]);
+  });
+
+  it('keeps events in order and produces sessions isSession accepts', () => {
+    let s = recordPersonAway(base, 10, 50_000);
+    s = recordPersonReturned(s, 20, 70_000);
+    s = recordCameraUnavailable(s, 30, 'busy');
+    expect(s.events.map((e) => e.type)).toEqual(['person_away', 'person_returned', 'camera_unavailable']);
+    expect(isSession(s)).toBe(true);
   });
 });
 

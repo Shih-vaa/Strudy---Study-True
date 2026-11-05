@@ -10,7 +10,8 @@ Strudy is for studying seriously from downloaded lectures, such as recorded clas
 
 **What Strudy will never do:**
 
-- no webcam, screen capture, keylogging or any other hidden monitoring
+- no screen capture, keylogging or any other hidden monitoring
+- no recording of the camera, and no use of it at all unless the owner switches the visible [camera check](#camera-check-optional) on
 - no accounts, telemetry or network calls: everything stays on this computer
 
 ## What works today
@@ -41,6 +42,7 @@ It counts **wall-clock** seconds, so playback speed never changes it (1 real sec
 3. The window is visible (not minimized)
 4. No "Still studying?" check is waiting for a click
 5. The computer is not asleep and the screen is not locked
+6. If the [camera check](#camera-check-optional) is switched on, someone is in front of the camera
 
 Gaps longer than 2.5 s between ticks (sleep, throttling) are discarded rather than credited. Pauses and focus changes are accounted for at the moment they happen, not rounded to the next second.
 
@@ -74,6 +76,29 @@ Every so often, while you are studying, a box asks **"Still studying? Click to c
 - If nobody clicks within **30 seconds**, the video **pauses**, a `presence_missed` event is logged, and the miss is counted. Clicking afterwards resumes the video if it was playing.
 - If you leave Strudy while a check is up, the check is dropped (leaving is already logged as a focus loss).
 
+### Camera check (optional)
+
+> **Status:** built and unit-tested, and checked in a real window with a synthetic test-pattern camera (notice, preview, "no one there" bar, paused video, stopped clock, log entries, camera released on leaving, microphone and location refused). **It has not yet been tried with a real camera and a real face**, so treat it as new until you have tried it yourself (see [Trying it](#trying-the-camera-check)). It is off by default.
+
+Without it, someone could start a lecture and walk away; the "Still studying?" checks limit that, but not completely. The camera check closes the gap: **the study clock counts only while someone is in front of the camera.**
+
+- **Off by default.** Only the owner can switch it on or off, in Settings (behind the exit password). Strudy's main process refuses camera access unless the setting is on, and it never opens the microphone.
+- **You always know.** While it runs, a small live picture of what the camera sees and a status line stay in the corner of the player, next to the Mac's own camera light. The first time it starts, a notice explains it and must be accepted.
+- **Nothing is recorded, saved or sent.** Each picture is looked at to answer one question, "is a face in view?", and dropped. The only thing written down is a note in the session log when no one is seen.
+- **Looking down to take notes is fine.** The clock stops only after no one has been seen for the grace period (45 seconds by default; 10 to 300 in Settings).
+- **When no one is there:** the clock stops, the video pauses, `person_away` is logged ("no one seen for 52 s"), and a red bar says so. When a face is seen again (two looks in a row, and two are needed to count someone as there at all, so one stray detection changes nothing) the video carries on and `person_returned` is logged ("away for 3 min 12 s").
+- **If the camera cannot be used** (permission refused, no camera, another app has it, unplugged, or the detector stops), the clock does **not** count, and `camera_unavailable` is logged with the reason. It fails closed rather than silently counting.
+- **How it finds a face.** Google's MediaPipe face detector (BlazeFace, short range) runs on the CPU inside the app, using files that ship with it (about 15 MB). It looks about once a second and says only yes or no.
+- **What it cannot do.** It sees that a face is there, not that anyone is learning, and a photo held up to the camera can fool it. It is friction and a record, like the rest of Strudy, not proof.
+
+#### Trying the camera check
+
+1. `npm run dev`, unlock **Settings**, and switch **Camera check** on.
+2. Open a video. The first time, the notice appears; accept it. macOS asks for camera access once.
+3. Sit in front of the camera: the dot turns green and the study clock counts. Cover the lens or step away: after the grace period the clock stops, the video pauses and a red bar appears. Come back and it carries on. **Summary** lists the "no one in front of the camera" events.
+
+`STRUDY_CAMERA_FAKE=1 npm run dev` gives a synthetic test-pattern camera with no face in it, which is useful for seeing the "no one there" side without the real camera. If macOS says access was denied, allow Strudy (or Electron, in a dev run) under System Settings, Privacy & Security, Camera.
+
 ### Exit password
 
 On first run Strudy asks you to create an **exit password** (at least 6 characters, entered twice). After that the app cannot be closed without it:
@@ -102,6 +127,7 @@ The **Settings** button on the library opens a screen that asks for the exit pas
 
 - **Bring Strudy back to the front when I leave it** (on by default). Turn it off and leaving still pauses the video, stops the clock and is logged; Strudy just does not pull itself back.
 - **"Still studying?" checks.** The shortest and longest gap, in whole minutes of studying (1 to 180). They are saved together, and the shortest cannot be longer than the longest.
+- **Camera check.** Switch it on or off, and set how many seconds no one may be seen before the clock stops (10 to 300).
 - **Recovery key.** Shows whether one is set and can make a new one (which stops the old one working).
 - **Change the exit password.** It asks for the current password again, and the new one needs at least 6 characters, entered twice.
 
@@ -154,6 +180,7 @@ STRUDY_FOCUS_LOCK=0 npm run dev   # stop Strudy pulling itself back to the front
 STRUDY_EXIT_LOCK=0 npm run dev    # let the window close without the password
 STRUDY_PRESENCE_FAST=1 npm run dev # "Still studying?" every 4 to 6 seconds of studying, 4 seconds to answer
 STRUDY_DEV_TOOLS=0 npm run dev    # behave like the installed app: no reload, no DevTools, no View menu
+STRUDY_CAMERA_FAKE=1 npm run dev  # a synthetic test-pattern camera instead of the real one (no macOS prompt, no camera light)
 ```
 
 `Ctrl+C` in the terminal always stops `npm run dev` (it force-quits Strudy if the window has not closed after two seconds).
@@ -192,8 +219,9 @@ This is still a deterrent, not a vault: someone with admin rights on the Mac can
 
 ## Privacy and data
 
-- **Local only.** There are no network calls. The renderer runs under a strict Content Security Policy (`connect-src 'none'`), and the main process cancels any request that is not local.
-- **What is stored:** resume positions, session records (start and end time, study time, the videos watched, focus losses and wrong-password attempts), a scrypt hash of the exit password and one of the recovery key (never either in the clear). Nothing else.
+- **Local only.** There are no network calls. The renderer runs under a strict Content Security Policy (`connect-src 'self'`, the app's own files only; pinned by a test), and the main process cancels any request that is not local. One thing to know: the camera check's face-detector library has a built-in usage logger that tries to contact a Google address (`odml.pa.googleapis.com`) and cannot be switched off. Both of those refuse it, so nothing is sent; in a development run you will see "blocked request" for it in the terminal.
+- **The camera** is used only by the visible camera check, only when the owner has switched it on; see [Camera check](#camera-check-optional). No picture is ever stored or sent. Page permissions are an allow-list: video from the app's own page, nothing else (no microphone, location, notifications and so on).
+- **What is stored:** resume positions, session records (start and end time, study time, the videos watched, focus losses, wrong-password attempts and, with the camera check on, when no one was seen), a scrypt hash of the exit password and one of the recovery key (never either in the clear). Nothing else.
 - **Where:** `strudy.json` in the app data folder: `~/Library/Application Support/Strudy` on macOS, `%APPDATA%\Strudy` on Windows. Delete the file to erase everything.
 - **Local files:** videos are served through a private `strudy-media://` protocol, and only files you picked in the open dialog this launch. `webSecurity` stays on.
 
@@ -203,6 +231,7 @@ This is still a deterrent, not a vault: someone with admin rights on the Mac can
 - A plain `kill` (SIGTERM) does not close a locked Strudy either, because Electron answers it by closing the window and the lock refuses. Use Force Quit or `kill -9`.
 - **Lost the password and the recovery key?** That is the last resort: quit Strudy by Force Quit, then delete the `auth` and `recovery` entries in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password and shows a new recovery key.
 - Taking focus back is best effort. There is no kiosk mode (skipped by choice), so `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. The installed app refuses debugging switches; a run from source (`npm run dev`) does not, by design. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
+- The camera check cannot tell attention from presence, and a photo or a video of a face held up to the camera can fool it. A face turned away or hidden for longer than the grace period counts as "no one there". Face detection is also less reliable in poor light.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.
 - Chromium pauses video that has no audio track when the window is hidden. Normal lectures have audio, so this mostly shows up with silent test clips.
@@ -222,6 +251,7 @@ This is still a deterrent, not a vault: someone with admin rights on the Mac can
 | 8 | "Still studying?" presence checks | Done |
 | 9 | Session summary, 7-day chart, CSV export | Done |
 | 10 | Packaging (Mac installers) and platform notes | Done (Mac only; no Windows installer for now) |
+| 11 | Optional camera presence check | Built and window-tested with a synthetic camera; not yet tried with a real face |
 
 **Platform honesty, for the lock to come:** on Windows, Ctrl+Alt+Del and the Windows key cannot be fully blocked without low-level keyboard hooks, which Strudy deliberately does not use. If something cannot be reliably blocked on an OS, this README will say so plainly rather than pretend.
 
@@ -239,6 +269,7 @@ src/
     summary/    Summary maths: today's totals, the 7-day chart, the session list
     focus/      Focus-loss logging logic and the pause/overlay hook
     presence/   "Still studying?" logic (pure) and the hook that runs it
+    camera/     Camera check: presence logic (pure), the camera hook, the face-detector interface, error messages
     timer/      Study timer (pure logic), clock helpers, session persistence
     state/      Zustand store
 scripts/      Dev runner and the app-icon generator (make-icon.swift, make-icns.sh)

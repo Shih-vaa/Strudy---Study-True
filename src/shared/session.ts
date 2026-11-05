@@ -1,7 +1,15 @@
 // Runtime helpers for sessions, shared by main (validation) and renderer (creation).
 import type { Session, StudyEvent, StudyEventType } from './types';
 
-const EVENT_TYPES: readonly StudyEventType[] = ['focus_lost', 'presence_missed', 'auth_failed', 'password_reset'];
+const EVENT_TYPES: readonly StudyEventType[] = [
+  'focus_lost',
+  'presence_missed',
+  'auth_failed',
+  'password_reset',
+  'person_away',
+  'person_returned',
+  'camera_unavailable',
+];
 
 export function createSession(id: string, startedAt: number): Session {
   return {
@@ -51,6 +59,34 @@ export function recordAuthFailed(session: Session, at: number, detail?: string):
       ? { type: 'auth_failed', timestamp: at }
       : { type: 'auth_failed', timestamp: at, detail };
   return { ...session, events: [...session.events, event] };
+}
+
+/** 52_000 -> "52 s", 192_000 -> "3 min 12 s", 3_720_000 -> "1 h 2 min". */
+export function formatSpan(ms: number): string {
+  const total = Number.isFinite(ms) ? Math.max(0, Math.round(ms / 1000)) : 0;
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  if (hours > 0) return `${hours} h ${minutes} min`;
+  if (minutes > 0) return `${minutes} min ${seconds} s`;
+  return `${seconds} s`;
+}
+
+/** The camera check saw no one for longer than the grace period, so the study clock stopped. */
+export function recordPersonAway(session: Session, at: number, absentMs: number): Session {
+  const detail = `no one seen for ${formatSpan(absentMs)}`;
+  return { ...session, events: [...session.events, { type: 'person_away', timestamp: at, detail }] };
+}
+
+/** Someone is in front of the camera again; `awayMs` is how long the camera check saw no one. */
+export function recordPersonReturned(session: Session, at: number, awayMs: number): Session {
+  const detail = `away for ${formatSpan(awayMs)}`;
+  return { ...session, events: [...session.events, { type: 'person_returned', timestamp: at, detail }] };
+}
+
+/** The camera check is on, but the camera could not be used; `reason` says why. */
+export function recordCameraUnavailable(session: Session, at: number, reason: string): Session {
+  return { ...session, events: [...session.events, { type: 'camera_unavailable', timestamp: at, detail: reason }] };
 }
 
 const isTime = (value: unknown): value is number =>

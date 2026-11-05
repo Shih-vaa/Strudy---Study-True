@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
+import CameraNotice from '../components/CameraNotice';
+import CameraPanel from '../components/CameraPanel';
 import Controls from '../components/Controls';
 import FocusOverlay from '../components/FocusOverlay';
 import PresenceModal from '../components/PresenceModal';
 import StudyClock from '../components/StudyClock';
 import VideoPlayer from '../components/VideoPlayer';
+import { useCameraPresence } from '../camera/useCameraPresence';
 import { useFocusLock } from '../focus/useFocusLock';
 import { restart, skip, togglePlay } from '../player/actions';
 import { baseName } from '../player/format';
@@ -41,6 +44,7 @@ export default function Player() {
   usePlayerShortcuts(video);
   const focus = useFocusLock(video);
   const presence = usePresenceCheck(video);
+  const camera = useCameraPresence(video);
 
   const ready = video !== null;
 
@@ -74,6 +78,7 @@ export default function Player() {
             onToggle={() => video && togglePlay(video)}
           />
         )}
+        {camera.enabled === true && !camera.noticeOpen && <CameraPanel ui={camera} />}
       </div>
 
       <Controls
@@ -95,6 +100,10 @@ export default function Player() {
 
       {presence.phase !== 'idle' && (
         <PresenceModal phase={presence.phase} secondsLeft={presence.secondsLeft} onAnswer={presence.answer} />
+      )}
+
+      {camera.noticeOpen && (
+        <CameraNotice graceSeconds={camera.graceSeconds} onAcknowledge={camera.acknowledgeNotice} />
       )}
 
       {focus.overlayVisible && <FocusOverlay awaySeconds={focus.awaySeconds} onDismiss={focus.dismiss} />}

@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { checkNewPassword, PASSWORD_MIN_LENGTH } from '../../shared/auth';
-import { PRESENCE_MINUTES_MAX, PRESENCE_MINUTES_MIN } from '../../shared/settings';
+import {
+  CAMERA_GRACE_SECONDS_MAX,
+  CAMERA_GRACE_SECONDS_MIN,
+  PRESENCE_MINUTES_MAX,
+  PRESENCE_MINUTES_MIN,
+} from '../../shared/settings';
 import type { Settings as SettingsValues } from '../../shared/types';
 import RecoverPassword from '../components/RecoverPassword';
 import RecoveryKeyDisplay from '../components/RecoveryKeyDisplay';
@@ -146,6 +151,7 @@ function Options({ onLocked }: { onLocked: () => void }) {
       </section>
 
       <PresenceRange settings={settings} save={save} />
+      <CameraCheck settings={settings} save={save} />
       <RecoveryKeyCard onLocked={onLocked} />
     </>
   );
@@ -201,6 +207,73 @@ function PresenceRange({
           />
         </label>
       </div>
+      {message && (
+        <p className={message.ok ? 'form-ok' : 'form-error'} role="alert">
+          {message.text}
+        </p>
+      )}
+      <button className="btn primary" type="submit">
+        Save
+      </button>
+    </form>
+  );
+}
+
+function CameraCheck({
+  settings,
+  save,
+}: {
+  settings: SettingsValues;
+  save: (patch: Partial<SettingsValues>) => Promise<string | null>;
+}) {
+  const [grace, setGrace] = useState(String(settings.cameraGraceSeconds));
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const toggle = async (on: boolean) => {
+    const error = await save({ cameraCheck: on });
+    setMessage(error ? { ok: false, text: error } : null);
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const error = await save({ cameraGraceSeconds: Number(grace) });
+    setMessage(error ? { ok: false, text: error } : { ok: true, text: 'Saved.' });
+  };
+
+  return (
+    <form className="setup-card" onSubmit={(event) => void submit(event)}>
+      <h2 className="card-title">Camera check</h2>
+      <label className="check">
+        <input type="checkbox" checked={settings.cameraCheck} onChange={(e) => void toggle(e.target.checked)} />
+        <span>
+          Count study time only while someone is in front of the camera
+          <small>
+            While a lecture plays, the camera looks for a face about once a second. If no one is seen for the time
+            below, the study clock stops, the video pauses and it is logged; it carries on when someone is back. If
+            the camera cannot be used, the clock does not count.
+          </small>
+        </span>
+      </label>
+      <p className="field-hint">
+        Nothing is recorded, saved or sent anywhere: each picture is looked at and thrown away at once. A small live
+        preview and the Mac&rsquo;s camera light are on the whole time, and the person studying is told the first
+        time it starts. It checks that a face is there, not that anyone is paying attention, and a photo held up to
+        the camera can fool it.
+      </p>
+      <label className="field">
+        Wait this long before stopping the clock (seconds)
+        <input
+          type="number"
+          min={CAMERA_GRACE_SECONDS_MIN}
+          max={CAMERA_GRACE_SECONDS_MAX}
+          step={1}
+          value={grace}
+          onChange={(e) => setGrace(e.target.value)}
+        />
+      </label>
+      <p className="field-hint">
+        From {CAMERA_GRACE_SECONDS_MIN} to {CAMERA_GRACE_SECONDS_MAX}. A longer wait is kinder to note-taking.
+      </p>
       {message && (
         <p className={message.ok ? 'form-ok' : 'form-error'} role="alert">
           {message.text}

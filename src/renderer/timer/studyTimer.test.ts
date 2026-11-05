@@ -14,6 +14,7 @@ const ALL_OK: StudyConditions = {
   windowVisible: true,
   presenceOk: true,
   systemActive: true,
+  cameraOk: true,
 };
 
 const CONDITION_KEYS = Object.keys(ALL_OK) as (keyof StudyConditions)[];
@@ -167,6 +168,37 @@ describe('createStudyTimer', () => {
       clock.advance(100);
       timer.tick(ALL_OK);
       expect(timer.studyMs).toBe(100);
+    });
+  });
+
+  describe('the camera check', () => {
+    it('stops the clock when no one is in front of the camera and restarts it when they are back', () => {
+      const clock = fakeClock();
+      const timer = createStudyTimer(clock.now);
+      clock.advance(TICK_MS);
+      timer.tick(ALL_OK);
+      for (let i = 0; i < 5; i++) {
+        clock.advance(TICK_MS);
+        expect(timer.tick({ ...ALL_OK, cameraOk: false })).toBe(0);
+      }
+      clock.advance(TICK_MS);
+      timer.tick(ALL_OK);
+      expect(timer.studyMs).toBe(2 * TICK_MS);
+    });
+
+    it('credits the part of a second before someone left, not the part after', () => {
+      const clock = fakeClock();
+      const timer = createStudyTimer(clock.now);
+      clock.advance(700);
+      timer.tick(ALL_OK); // flush under the conditions that held until the camera lost them
+      clock.advance(300);
+      timer.tick({ ...ALL_OK, cameraOk: false });
+      expect(timer.studyMs).toBe(700);
+    });
+
+    it('intersect keeps "camera not ok" if it failed on either side', () => {
+      expect(intersect({ ...ALL_OK, cameraOk: false }, ALL_OK).cameraOk).toBe(false);
+      expect(intersect(ALL_OK, { ...ALL_OK, cameraOk: false }).cameraOk).toBe(false);
     });
   });
 });

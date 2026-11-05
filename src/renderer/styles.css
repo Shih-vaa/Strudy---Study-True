@@ -133,7 +133,7 @@ body {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
 }
 
@@ -683,6 +683,108 @@ body {
   margin-top: 8px;
   padding: 12px 24px;
   font-size: 16px;
+}
+
+.camera-notice {
+  align-items: stretch;
+  width: min(520px, 100%);
+  text-align: left;
+}
+
+.camera-notice h2 {
+  text-align: center;
+  font-size: 24px;
+}
+
+.camera-notice ul {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 6px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.camera-notice strong {
+  color: var(--text);
+}
+
+.camera-panel {
+  --tone: var(--muted);
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 148px;
+  padding: 6px;
+  border: 1px solid var(--tone);
+  border-radius: 10px;
+  background: rgba(24, 27, 34, 0.92);
+  font-size: 12px;
+  line-height: 1.3;
+  pointer-events: none;
+}
+
+.camera-panel[data-tone='ok'] {
+  --tone: var(--ok);
+}
+
+.camera-panel[data-tone='warn'] {
+  --tone: #fbbf24;
+}
+
+.camera-panel[data-tone='bad'] {
+  --tone: var(--bad);
+}
+
+/* Mirrored, like a mirror, so moving feels natural. Overrides the player's video rules. */
+.player-stage .camera-preview {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+  background: #000;
+  object-fit: cover;
+  transform: scaleX(-1);
+  cursor: default;
+}
+
+.camera-status {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.camera-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
+.camera-note {
+  color: var(--muted);
+}
+
+.camera-banner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 10;
+  padding: 12px 16px 12px 176px;
+  background: rgba(127, 29, 29, 0.94);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
 }
 
 .focus-overlay {

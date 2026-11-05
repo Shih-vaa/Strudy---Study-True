@@ -35,6 +35,10 @@ mac:
   # does not work with an ad-hoc signature, so it is off.
   identity: '-'
   hardenedRuntime: false
+  # The text macOS shows in its own "Strudy would like to access the camera" prompt. The camera is
+  # only ever used by the visible camera check, which the owner switches on in Settings.
+  extendInfo:
+    NSCameraUsageDescription: Strudy uses the camera only if the camera check is switched on in Settings, to see whether someone is in front of it while a lecture plays. Nothing is recorded, saved or sent.
   # The architectures come from the command line (npm run pack builds both): release/mac-arm64 is
   # for Apple silicon (M1 and later), release/mac is for Intel.
   target: dir

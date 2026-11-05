@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createSession } from '../../shared/session';
 import {
   barHeights,
+  countPersonAway,
   formatStudyTime,
   lastDays,
   sessionRows,
@@ -34,6 +35,7 @@ describe('summarizeDay', () => {
       sessions: 2,
       focusLost: 3,
       presenceMissed: 1,
+      personAway: 0,
     });
   });
 
@@ -44,13 +46,43 @@ describe('summarizeDay', () => {
       sessions: 0,
       focusLost: 0,
       presenceMissed: 0,
+      personAway: 0,
     });
+  });
+
+  it('counts the times the camera check found no one, from the logged events', () => {
+    const watched = [
+      session('cam', at(9), {
+        events: [
+          { type: 'person_away', timestamp: at(9, 10), detail: 'no one seen for 45 s' },
+          { type: 'person_returned', timestamp: at(9, 20), detail: 'away for 9 min 40 s' },
+          { type: 'person_away', timestamp: at(9, 40), detail: 'no one seen for 50 s' },
+          { type: 'camera_unavailable', timestamp: at(9, 50), detail: 'busy' },
+        ],
+      }),
+      session('other', at(13), { events: [{ type: 'person_away', timestamp: at(13, 5) }] }),
+    ];
+    expect(summarizeDay(watched, midnight(4)).personAway).toBe(3);
+    expect(sessionRows(watched, null).find((r) => r.id === 'cam')?.personAway).toBe(2);
   });
 
   it('puts a session just before and just after midnight on the right days', () => {
     const edge = [session('late', at(23, 59, 3), { studyMs: 1000 }), session('early', at(0, 1, 4), { studyMs: 2000 })];
     expect(summarizeDay(edge, midnight(3)).studyMs).toBe(1000);
     expect(summarizeDay(edge, midnight(4)).studyMs).toBe(2000);
+  });
+});
+
+describe('countPersonAway', () => {
+  it('counts only person_away events, and is 0 for none', () => {
+    expect(countPersonAway([])).toBe(0);
+    expect(
+      countPersonAway([
+        { type: 'focus_lost', timestamp: 1 },
+        { type: 'person_away', timestamp: 2 },
+        { type: 'person_returned', timestamp: 3 },
+      ]),
+    ).toBe(1);
   });
 });
 
