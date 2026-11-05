@@ -15,8 +15,10 @@
     "start": "npm run build && electron .",
     "pack": "npm run build && electron-builder --mac --arm64 --x64",
     "pack:arm64": "npm run build && electron-builder --mac --arm64",
+    "pack:x64": "npm run build && electron-builder --mac --x64",
     "dist": "npm run pack && ./scripts/make-dmg.sh",
-    "dist:arm64": "npm run pack:arm64 && ./scripts/make-dmg.sh",
+    "dist:arm64": "npm run pack:arm64 && ./scripts/make-dmg.sh arm64",
+    "dist:x64": "npm run pack:x64 && ./scripts/make-dmg.sh x64",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.test.json --noEmit"

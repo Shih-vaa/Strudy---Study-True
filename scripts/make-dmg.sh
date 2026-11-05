@@ -1,9 +1,16 @@
 #!/bin/bash
 # Wraps each built app in release/ into a disk image: release/Strudy-<version>-<arch>.dmg, with the
 # app and an Applications shortcut to drag it onto. Uses only macOS's own tools (ditto, hdiutil),
-# so it needs no network. An architecture whose app was not built is skipped.
+# so it needs no network. An architecture whose app was not built is skipped. Pass "arm64" or "x64"
+# to make only that one image and leave the other untouched.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+only="${1:-}"
+if [ -n "$only" ] && [ "$only" != "arm64" ] && [ "$only" != "x64" ]; then
+  echo "usage: scripts/make-dmg.sh [arm64|x64]" >&2
+  exit 2
+fi
 
 version="$(node -p "require('./package.json').version")"
 made=0
@@ -11,6 +18,9 @@ made=0
 make_dmg() {
   local arch="$1" folder="$2"
   local app="release/$folder/Strudy.app"
+  if [ -n "$only" ] && [ "$only" != "$arch" ]; then
+    return
+  fi
   if [ ! -d "$app" ]; then
     echo "skipping $arch: $app was not built"
     return

@@ -181,7 +181,8 @@ The first run downloads the Electron binary, so it needs internet once. If that 
 | `npm run typecheck` | Type-check main, renderer and tests |
 | `npm run dist` | Build the Mac installers (Apple silicon and Intel) into `release/`; see [Installing on a Mac](#installing-on-a-mac) |
 | `npm run dist:arm64` | The same, for Apple silicon only (it does not need the large Intel download) |
-| `npm run pack` / `pack:arm64` | Just the app folder, without the disk images |
+| `npm run dist:x64` | The same, for Intel only (downloads the Intel build of Electron, about 125 MB, the first time) |
+| `npm run pack` / `pack:arm64` / `pack:x64` | Just the app folder, without the disk images |
 
 While developing you will not want the locks in your way. These switches work only when running from source and are **ignored in packaged builds**:
 
@@ -203,6 +204,10 @@ STRUDY_CAMERA_FAKE=1 npm run dev  # a synthetic test-pattern camera instead of t
 - `Strudy-<version>-x64.dmg` for Intel Macs
 
 Not sure which? Apple menu → **About This Mac**: "Chip: Apple M…" means arm64, "Processor: Intel…" means x64.
+
+Both images carry the same app: the same camera texts, face models and locks. The Intel one was checked on an Apple silicon Mac through Rosetta (it starts and shows its window); the camera was only tried on the Apple silicon build. The images are not in git (`release/` is ignored): build them with `npm run dist:arm64` and `npm run dist:x64`.
+
+*If the Intel build fails with "504 Gateway Time-out" after the download reaches 100%:* GitHub's server is refusing that one file. Download `electron-v<version>-darwin-x64.zip` from the Electron release page yourself, check its SHA-256 against the release's `SHASUMS256.txt`, and put it in `~/Library/Caches/electron/<folder>/` next to the existing Apple silicon file (the folder name is the one already there); then run the build again.
 
 The app is built and signed by `electron-builder`; the disk image is then made by `scripts/make-dmg.sh` with macOS's own `hdiutil`, because the builder's own disk-image step downloads a helper from GitHub and that download can stall. Building the Intel version downloads Electron's Intel build (about 125 MB) once. If that download is very slow or stalls, use `npm run dist:arm64` for the Apple silicon image now and run `npm run dist` again later for the Intel one.
 
