@@ -30,6 +30,14 @@ export interface Settings {
   cameraCheck: boolean;
   /** How long nobody may be seen before the clock stops (note-taking is not penalized). Whole seconds. */
   cameraGraceSeconds: number;
+  /**
+   * Also read the eyes and the head direction: a face in view with the eyes closed, or the head turned
+   * well away, counts like no one being there. Only has an effect while `cameraCheck` is on. Off by
+   * default. Where on the screen she looks is never tracked.
+   */
+  cameraAttention: boolean;
+  /** How long eyes may stay closed or the head turned away before the clock stops. Whole seconds. */
+  cameraAttentionGraceSeconds: number;
 }
 
 /** The presence-check timings in force, in milliseconds. */

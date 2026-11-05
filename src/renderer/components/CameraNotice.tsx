@@ -1,10 +1,13 @@
 interface CameraNoticeProps {
   graceSeconds: number;
+  /** The owner has also switched on the eyes-and-head check. */
+  attention: boolean;
+  attentionGraceSeconds: number;
   onAcknowledge: () => void;
 }
 
 /** Shown once, before the camera first starts, so nobody is surprised by it. */
-export default function CameraNotice({ graceSeconds, onAcknowledge }: CameraNoticeProps) {
+export default function CameraNotice({ graceSeconds, attention, attentionGraceSeconds, onAcknowledge }: CameraNoticeProps) {
   return (
     <div className="presence-backdrop">
       <div className="presence-modal camera-notice" role="alertdialog" aria-modal="true" aria-labelledby="camera-notice-title">
@@ -16,12 +19,21 @@ export default function CameraNotice({ graceSeconds, onAcknowledge }: CameraNoti
           </li>
           <li>
             <strong>Nothing is recorded, saved or sent anywhere.</strong> Each picture is looked at and thrown away
-            at once. The only thing kept is a note in your study log when no one is seen.
+            at once. The only thing kept is a note in your study log when the clock was stopped.
           </li>
           <li>
             Your study clock counts only while you are there. If no one is seen for {graceSeconds} seconds, the
-            clock stops and the video pauses; it carries on when you are back. A quick look down to take notes is fine.
+            clock stops and the video pauses; it carries on when you are back. A quick look down to take notes is
+            fine.
           </li>
+          {attention && (
+            <li>
+              <strong>It also checks your eyes and which way your head points.</strong> If your eyes stay closed, or
+              your head stays turned well away from the screen, for {attentionGraceSeconds} seconds, the clock stops
+              and the video pauses too, and it carries on when you look back. It does not track where on the screen
+              you are looking.
+            </li>
+          )}
           <li>Only the person with the exit password can switch this off.</li>
         </ul>
         <button className="btn primary" autoFocus onClick={onAcknowledge}>

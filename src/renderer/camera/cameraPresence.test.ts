@@ -4,6 +4,7 @@ import {
   cameraChange,
   DISABLED_CAMERA,
   graceSecondsLeft,
+  HINT_AFTER_MS,
   isCameraOk,
   reduceCamera,
   STARTING_CAMERA,
@@ -95,6 +96,13 @@ describe('looking away within the grace period', () => {
     // another 40 s without a face is again within the grace period
     state = run(state, repeat(empty, 40), 44_000);
     expect(state.phase).toBe('present');
+  });
+
+  it('shows no countdown for a passing glance: only once the trouble has lasted 3 seconds', () => {
+    const state = reduceCamera(PRESENT, empty, 2000, config); // no face since 2 s
+    expect(graceSecondsLeft(state, 2000, config.graceMs)).toBeNull();
+    expect(graceSecondsLeft(state, 2000 + HINT_AFTER_MS - 1, config.graceMs)).toBeNull();
+    expect(graceSecondsLeft(state, 2000 + HINT_AFTER_MS, config.graceMs)).toBe(42);
   });
 
   it('reports the seconds left of the grace period for the on-screen hint', () => {
@@ -232,7 +240,7 @@ describe('cameraChange (what gets logged)', () => {
   it('reports going away once, with how long no one was seen', () => {
     const before = run(PRESENT, repeat(empty, 44), 2000); // no face since 2 s, still present
     const after = reduceCamera(before, empty, 47_000, config);
-    expect(cameraChange(before, after, 47_000)).toEqual({ kind: 'away', absentMs: 45_000 });
+    expect(cameraChange(before, after, 47_000)).toEqual({ kind: 'away', absentMs: 45_000, why: 'no_face' });
     // staying away is not a new change
     const later = reduceCamera(after, empty, 48_000, config);
     expect(cameraChange(after, later, 48_000)).toBeNull();
@@ -269,5 +277,95 @@ describe('the state is never mutated', () => {
     const after = reduceCamera(before, face, 1, config);
     expect(after).not.toBe(before);
     expect(before.phase).toBe('starting');
+  });
+});
+
+describe('eyes closed or head turned away (the eyes-and-head check)', () => {
+  const withAttention: CameraConfig = { graceMs: 10_000, attentionGraceMs: 20_000, faceFrames: 2 };
+  const closed: CameraEvent = { kind: 'sample', faceSeen: false, why: 'eyes_closed' };
+  const turned: CameraEvent = { kind: 'sample', faceSeen: false, why: 'looking_away' };
+  const seen = (state: CameraState, event: CameraEvent, now: number) => reduceCamera(state, event, now, withAttention);
+  const settled = (): CameraState => seen(seen(STARTING_CAMERA, face, 0), face, 1000, ) ;
+
+  it('keeps counting through a short spell of closed eyes, and says what is wrong', () => {
+    let state = settled();
+    state = seen(state, closed, 2000);
+    expect(state.phase).toBe('present');
+    expect(state.missing).toBe('eyes_closed');
+    expect(isCameraOk(state, 2000)).toBe(true);
+  });
+
+  it('uses the longer wait for closed eyes: still present at 19.9 s, away at 20 s', () => {
+    let state = settled();
+    state = seen(state, closed, 2000); // run starts at 2 s
+    expect(seen(state, closed, 21_999).phase).toBe('present');
+    const away = seen(state, closed, 22_000);
+    expect(away.phase).toBe('away');
+    expect(away.awayKind).toBe('eyes_closed');
+    expect(away.awaySince).toBe(2000);
+    expect(isCameraOk(away, 22_000)).toBe(false);
+  });
+
+  it('uses the longer wait for a turned head too', () => {
+    let state = seen(settled(), turned, 2000);
+    expect(seen(state, turned, 21_999).phase).toBe('present');
+    expect(seen(state, turned, 22_000)).toMatchObject({ phase: 'away', awayKind: 'looking_away' });
+  });
+
+  it('still uses the shorter wait when no face is in view at all', () => {
+    const state = seen(settled(), empty, 2000);
+    expect(seen(state, empty, 11_999).phase).toBe('present');
+    expect(seen(state, empty, 12_000)).toMatchObject({ phase: 'away', awayKind: 'no_face' });
+  });
+
+  it('falls back to the one wait when no separate attention wait is given', () => {
+    const one: CameraConfig = { graceMs: 10_000, faceFrames: 2 };
+    let state = reduceCamera(reduceCamera(STARTING_CAMERA, face, 0, one), face, 1000, one);
+    state = reduceCamera(state, closed, 2000, one);
+    expect(reduceCamera(state, closed, 12_000, one).phase).toBe('away');
+  });
+
+  it('treats a face that flickers out while the eyes are closed with the shorter wait, so the clock stops sooner, not later', () => {
+    let state = seen(settled(), closed, 2000);
+    state = seen(state, closed, 9000);
+    state = seen(state, empty, 12_000); // a frame with no face: 10 s into the run is enough
+    expect(state).toMatchObject({ phase: 'away', awayKind: 'no_face' });
+  });
+
+  it('comes back only after two frames of someone attending', () => {
+    const away = seen(seen(settled(), closed, 2000), closed, 22_000);
+    expect(away.phase).toBe('away');
+    const one = seen(away, face, 23_000);
+    expect(one.phase).toBe('away');
+    const back = seen(one, face, 24_000);
+    expect(back).toMatchObject({ phase: 'present', missing: null, awayKind: null, noFaceSince: null });
+  });
+
+  it('a face with closed eyes does not bring someone back from away', () => {
+    const away = seen(seen(settled(), empty, 2000), empty, 12_000);
+    expect(away.phase).toBe('away');
+    const stillAway = seen(seen(away, closed, 13_000), closed, 14_000);
+    expect(stillAway.phase).toBe('away');
+  });
+
+  it('reports what stopped the clock in the change that gets logged', () => {
+    const before = seen(settled(), closed, 2000);
+    const after = seen(before, closed, 22_000);
+    expect(cameraChange(before, after, 22_000)).toEqual({ kind: 'away', absentMs: 20_000, why: 'eyes_closed' });
+  });
+
+  it('counts down the right wait for the on-screen hint', () => {
+    const eyes = seen(settled(), closed, 2000);
+    expect(graceSecondsLeft(eyes, 7000, 10_000, 20_000)).toBe(15);
+    const face0 = seen(settled(), empty, 2000);
+    expect(graceSecondsLeft(face0, 7000, 10_000, 20_000)).toBe(5);
+  });
+
+  it('forgets the reason once someone is attending again', () => {
+    const glance = seen(seen(settled(), turned, 2000), face, 3000);
+    // one frame is not enough to clear the run...
+    expect(glance.missing).toBe('looking_away');
+    // ...two are
+    expect(seen(glance, face, 4000)).toMatchObject({ missing: null, noFaceSince: null });
   });
 });

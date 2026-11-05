@@ -237,7 +237,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       const current = session ?? newSession();
       const logged =
         change.kind === 'away'
-          ? recordPersonAway(current, at, change.absentMs)
+          ? recordPersonAway(current, at, change.absentMs, change.why)
           : change.kind === 'returned'
             ? recordPersonReturned(current, at, change.awayMs)
             : recordCameraUnavailable(current, at, change.reason);

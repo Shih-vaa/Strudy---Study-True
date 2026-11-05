@@ -13,15 +13,21 @@ export default function CameraPanel({ ui }: { ui: CameraUi }) {
     if (preview.current) preview.current.srcObject = ui.stream;
   }, [ui.stream]);
 
+  const trouble =
+    ui.missing === 'eyes_closed' ? 'Eyes closed' : ui.missing === 'looking_away' ? 'Looking away' : 'Can’t see you';
   const status =
     ui.phase === 'starting'
       ? 'Starting the camera…'
       : ui.phase === 'present'
         ? ui.graceLeft === null
           ? 'Camera on'
-          : `Can’t see you. The clock stops in ${ui.graceLeft} s`
+          : `${trouble}. The clock stops in ${ui.graceLeft} s`
         : ui.phase === 'away'
-          ? 'No one in view'
+          ? ui.missing === 'eyes_closed'
+            ? 'Eyes closed'
+            : ui.missing === 'looking_away'
+              ? 'Looking away'
+              : 'No one in view'
           : 'Camera unavailable';
   const tone = ui.phase === 'present' && ui.graceLeft === null ? 'ok' : ui.phase === 'starting' || ui.phase === 'present' ? 'warn' : 'bad';
 
@@ -38,8 +44,13 @@ export default function CameraPanel({ ui }: { ui: CameraUi }) {
 
       {ui.phase === 'away' && (
         <div className="camera-banner" role="alert">
-          No one in front of the camera. The study clock is stopped and the video is paused. It carries on when you
-          are back.
+          {ui.missing === 'eyes_closed'
+            ? 'Your eyes have been closed for a while.'
+            : ui.missing === 'looking_away'
+              ? 'You are looking away from the screen.'
+              : 'No one in front of the camera.'}{' '}
+          The study clock is stopped and the video is paused. It carries on when{' '}
+          {ui.missing === 'eyes_closed' ? 'you open your eyes' : ui.missing === 'looking_away' ? 'you look back' : 'you are back'}.
         </div>
       )}
       {ui.phase === 'unavailable' && (

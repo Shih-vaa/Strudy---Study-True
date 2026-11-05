@@ -13,6 +13,8 @@ export const DEFAULT_SETTINGS: Settings = {
   presenceMaxMinutes: 15,
   cameraCheck: false,
   cameraGraceSeconds: 10,
+  cameraAttention: false,
+  cameraAttentionGraceSeconds: 20,
 };
 
 const isMinutes = (value: unknown): value is number =>
@@ -43,6 +45,11 @@ export function normalizeSettings(value: unknown): Settings {
     cameraGraceSeconds: isGraceSeconds(stored.cameraGraceSeconds)
       ? stored.cameraGraceSeconds
       : DEFAULT_SETTINGS.cameraGraceSeconds,
+    cameraAttention:
+      typeof stored.cameraAttention === 'boolean' ? stored.cameraAttention : DEFAULT_SETTINGS.cameraAttention,
+    cameraAttentionGraceSeconds: isGraceSeconds(stored.cameraAttentionGraceSeconds)
+      ? stored.cameraAttentionGraceSeconds
+      : DEFAULT_SETTINGS.cameraAttentionGraceSeconds,
   };
 }
 
@@ -57,11 +64,13 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
       next.focusLock = value;
     } else if (key === 'cameraCheck' && typeof value === 'boolean') {
       next.cameraCheck = value;
-    } else if (key === 'cameraGraceSeconds') {
+    } else if (key === 'cameraAttention' && typeof value === 'boolean') {
+      next.cameraAttention = value;
+    } else if (key === 'cameraGraceSeconds' || key === 'cameraAttentionGraceSeconds') {
       if (!isGraceSeconds(value)) {
         throw new Error(`Use whole seconds from ${CAMERA_GRACE_SECONDS_MIN} to ${CAMERA_GRACE_SECONDS_MAX}.`);
       }
-      next.cameraGraceSeconds = value;
+      next[key] = value;
     } else if (key === 'presenceMinMinutes' || key === 'presenceMaxMinutes') {
       if (!isMinutes(value)) {
         throw new Error(`Use whole minutes from ${PRESENCE_MINUTES_MIN} to ${PRESENCE_MINUTES_MAX}.`);

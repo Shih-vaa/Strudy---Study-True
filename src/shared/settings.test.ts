@@ -9,6 +9,10 @@ describe('DEFAULT_SETTINGS', () => {
   it('leaves the camera check off, with a 10 second grace period ready for when it is switched on', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({ cameraCheck: false, cameraGraceSeconds: 10 });
   });
+
+  it('leaves the eyes-and-head check off too, with a 20 second grace period', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ cameraAttention: false, cameraAttentionGraceSeconds: 20 });
+  });
 });
 
 describe('normalizeSettings', () => {
@@ -19,6 +23,8 @@ describe('normalizeSettings', () => {
       presenceMaxMinutes: 5,
       cameraCheck: true,
       cameraGraceSeconds: 90,
+      cameraAttention: true,
+      cameraAttentionGraceSeconds: 45,
     };
     expect(normalizeSettings(stored)).toEqual(stored);
   });
@@ -56,13 +62,31 @@ describe('normalizeSettings', () => {
 
   it('reads settings saved before the camera check existed as "camera off"', () => {
     const old = { focusLock: false, presenceMinMinutes: 3, presenceMaxMinutes: 5 };
-    expect(normalizeSettings(old)).toEqual({ ...old, cameraCheck: false, cameraGraceSeconds: 10 });
+    expect(normalizeSettings(old)).toEqual({
+      ...old,
+      cameraCheck: false,
+      cameraGraceSeconds: 10,
+      cameraAttention: false,
+      cameraAttentionGraceSeconds: 20,
+    });
   });
 
   it('never turns the camera on from a wrongly typed value', () => {
     for (const bad of ['true', 1, null, {}]) {
       expect(normalizeSettings({ cameraCheck: bad }).cameraCheck).toBe(false);
     }
+  });
+
+  it('never turns the eyes-and-head check on from a wrongly typed value', () => {
+    for (const bad of ['true', 1, null, {}]) {
+      expect(normalizeSettings({ cameraAttention: bad }).cameraAttention).toBe(false);
+    }
+  });
+
+  it.each([9, 301, 45.5, '45', Number.NaN, null])('resets an eyes-and-head grace period of %s on its own', (bad) => {
+    const result = normalizeSettings({ cameraAttention: true, cameraAttentionGraceSeconds: bad });
+    expect(result.cameraAttentionGraceSeconds).toBe(20);
+    expect(result.cameraAttention).toBe(true);
   });
 
   it.each([9, 301, 45.5, '45', Number.NaN, null])('resets a grace period of %s on its own', (bad) => {
@@ -114,6 +138,15 @@ describe('applySettingsPatch', () => {
   it('switches the camera check on and off', () => {
     expect(applySettingsPatch(current, { cameraCheck: true }).cameraCheck).toBe(true);
     expect(applySettingsPatch({ ...current, cameraCheck: true }, { cameraCheck: false }).cameraCheck).toBe(false);
+  });
+
+  it('switches the eyes-and-head check on and off, and sets its grace period within 10 to 300 seconds', () => {
+    expect(applySettingsPatch(current, { cameraAttention: true }).cameraAttention).toBe(true);
+    expect(applySettingsPatch(current, { cameraAttentionGraceSeconds: 90 }).cameraAttentionGraceSeconds).toBe(90);
+    for (const bad of [9, 301, 20.5, '20', Number.NaN, null]) {
+      expect(() => applySettingsPatch(current, { cameraAttentionGraceSeconds: bad })).toThrow(/whole seconds from 10 to 300/);
+    }
+    expect(() => applySettingsPatch(current, { cameraAttention: 'yes' })).toThrow();
   });
 
   it('sets the grace period within 10 to 300 seconds', () => {

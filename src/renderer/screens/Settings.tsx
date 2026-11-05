@@ -227,6 +227,7 @@ function CameraCheck({
   save: (patch: Partial<SettingsValues>) => Promise<string | null>;
 }) {
   const [grace, setGrace] = useState(String(settings.cameraGraceSeconds));
+  const [attentionGrace, setAttentionGrace] = useState(String(settings.cameraAttentionGraceSeconds));
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const toggle = async (on: boolean) => {
@@ -234,9 +235,18 @@ function CameraCheck({
     setMessage(error ? { ok: false, text: error } : null);
   };
 
+  const toggleAttention = async (on: boolean) => {
+    const error = await save({ cameraAttention: on });
+    setMessage(error ? { ok: false, text: error } : null);
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const error = await save({ cameraGraceSeconds: Number(grace) });
+    // Both waits go together, like the two ends of the "Still studying?" range.
+    const error = await save({
+      cameraGraceSeconds: Number(grace),
+      cameraAttentionGraceSeconds: Number(attentionGrace),
+    });
     setMessage(error ? { ok: false, text: error } : { ok: true, text: 'Saved.' });
   };
 
@@ -274,6 +284,35 @@ function CameraCheck({
       <p className="field-hint">
         From {CAMERA_GRACE_SECONDS_MIN} to {CAMERA_GRACE_SECONDS_MAX}. A longer wait is kinder to note-taking.
       </p>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={settings.cameraAttention}
+          disabled={!settings.cameraCheck}
+          onChange={(e) => void toggleAttention(e.target.checked)}
+        />
+        <span>
+          Also check the eyes and which way the head points
+          <small>
+            With this on, a face in view with the eyes closed, or the head turned well away from the screen, counts
+            like no one being there once the wait below has passed. It never tracks where on the screen she is
+            looking. Resting the eyes while listening, or glancing at a book beside the laptop, can pause the clock:
+            leave it off, or give it a longer wait. The person studying sees an extra line in the notice, shown
+            again the next time the camera starts.
+          </small>
+        </span>
+      </label>
+      <label className="field">
+        Wait this long for closed eyes or a turned head (seconds)
+        <input
+          type="number"
+          min={CAMERA_GRACE_SECONDS_MIN}
+          max={CAMERA_GRACE_SECONDS_MAX}
+          step={1}
+          value={attentionGrace}
+          onChange={(e) => setAttentionGrace(e.target.value)}
+        />
+      </label>
       {message && (
         <p className={message.ok ? 'form-ok' : 'form-error'} role="alert">
           {message.text}

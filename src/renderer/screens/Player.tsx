@@ -103,7 +103,12 @@ export default function Player() {
       )}
 
       {camera.noticeOpen && (
-        <CameraNotice graceSeconds={camera.graceSeconds} onAcknowledge={camera.acknowledgeNotice} />
+        <CameraNotice
+          graceSeconds={camera.graceSeconds}
+          attention={camera.attention}
+          attentionGraceSeconds={camera.attentionGraceSeconds}
+          onAcknowledge={camera.acknowledgeNotice}
+        />
       )}
 
       {focus.overlayVisible && <FocusOverlay awaySeconds={focus.awaySeconds} onDismiss={focus.dismiss} />}

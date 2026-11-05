@@ -72,9 +72,21 @@ export function formatSpan(ms: number): string {
   return `${seconds} s`;
 }
 
-/** The camera check saw no one for longer than the grace period, so the study clock stopped. */
-export function recordPersonAway(session: Session, at: number, absentMs: number): Session {
-  const detail = `no one seen for ${formatSpan(absentMs)}`;
+/** What stopped the clock, in the words the log uses. */
+export type AwayWhy = 'no_face' | 'eyes_closed' | 'looking_away';
+
+const AWAY_WORDS: Record<AwayWhy, string> = {
+  no_face: 'no one seen',
+  eyes_closed: 'eyes closed',
+  looking_away: 'looking away',
+};
+
+/**
+ * The camera check stopped the study clock for longer than the grace period: no one was there, or
+ * someone was there with their eyes closed or head turned away.
+ */
+export function recordPersonAway(session: Session, at: number, absentMs: number, why: AwayWhy = 'no_face'): Session {
+  const detail = `${AWAY_WORDS[why]} for ${formatSpan(absentMs)}`;
   return { ...session, events: [...session.events, { type: 'person_away', timestamp: at, detail }] };
 }
 

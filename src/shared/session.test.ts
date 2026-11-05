@@ -56,6 +56,16 @@ describe('camera events', () => {
     expect(base.events).toEqual([]);
   });
 
+  it('logs closed eyes and a turned head as person_away with the matching words', () => {
+    expect(recordPersonAway(base, 9_000, 20_000, 'eyes_closed').events).toEqual([
+      { type: 'person_away', timestamp: 9_000, detail: 'eyes closed for 20 s' },
+    ]);
+    expect(recordPersonAway(base, 9_000, 75_000, 'looking_away').events).toEqual([
+      { type: 'person_away', timestamp: 9_000, detail: 'looking away for 1 min 15 s' },
+    ]);
+    expect(recordPersonAway(base, 9_000, 10_000, 'no_face').events[0]?.detail).toBe('no one seen for 10 s');
+  });
+
   it('logs person_returned with how long they were gone', () => {
     const after = recordPersonReturned(base, 9_000, 192_000);
     expect(after.events).toEqual([{ type: 'person_returned', timestamp: 9_000, detail: 'away for 3 min 12 s' }]);

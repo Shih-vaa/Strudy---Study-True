@@ -78,7 +78,7 @@ Every so often, while you are studying, a box asks **"Still studying? Click to c
 
 ### Camera check (optional)
 
-> **Status:** built and unit-tested, and checked in a real window with a synthetic test-pattern camera (notice, preview, "no one there" bar, paused video, stopped clock, log entries, camera released on leaving, microphone and location refused). It has been tried with a real face on a MacBook's built-in camera (it counts while you face it, goes "away" after the grace period, and resumes by itself when you are back), but only on that one machine and in normal room light, so try it yourself (see [Trying it](#trying-the-camera-check)) before relying on it. It is off by default.
+> **Status:** built and unit-tested, and checked in a real window with a synthetic test-pattern camera (notice, preview, "no one there" bar, paused video, stopped clock, log entries, camera released on leaving, microphone and location refused). It has been tried with a real face on a MacBook's built-in camera (it counts while you face it, goes "away" after the grace period, and resumes by itself when you are back; with the optional eyes-and-head check on, looking down at a notebook keeps the clock running, while closed eyes and a turned head stop it after the wait and it recovers when you look back), but only on one person, one machine and in normal room light, so try it yourself (see [Trying it](#trying-the-camera-check)) before relying on it. It is off by default.
 
 Without it, someone could start a lecture and walk away; the "Still studying?" checks limit that, but not completely. The camera check closes the gap: **the study clock counts only while someone is in front of the camera.**
 
@@ -88,8 +88,18 @@ Without it, someone could start a lecture and walk away; the "Still studying?" c
 - **A quick look down is fine.** The clock stops only after no one has been seen for the grace period (10 seconds by default, the shortest allowed; up to 300 in Settings). If notes take longer than that, raise it.
 - **When no one is there:** the clock stops, the video pauses, `person_away` is logged ("no one seen for 52 s"), and a red bar says so. When a face is seen again (two looks in a row, and two are needed to count someone as there at all, so one stray detection changes nothing) the video carries on and `person_returned` is logged ("away for 3 min 12 s").
 - **If the camera cannot be used** (permission refused, no camera, another app has it, unplugged, or the detector stops), the clock does **not** count, and `camera_unavailable` is logged with the reason. It fails closed rather than silently counting.
-- **How it finds a face.** Google's MediaPipe face detector (BlazeFace, short range) runs on the CPU inside the app, using files that ship with it (about 15 MB). It looks about once a second and says only yes or no.
+- **How it finds a face.** Google's MediaPipe face detector (BlazeFace, short range) runs on the CPU inside the app, using files that ship with it (about 15 MB). It looks about once a second and says only yes or no. With the optional eyes-and-head check on, it uses Google's Face Landmarker model instead (another 3.7 MB, shipped too).
 - **What it cannot do.** It sees that a face is there, not that anyone is learning, and a photo held up to the camera can fool it. It is friction and a record, like the rest of Strudy, not proof.
+
+#### Eyes and head direction (optional, a second switch)
+
+A face in front of the camera does not mean someone is awake and facing the lecture. With **Also check the eyes and which way the head points** switched on in Settings (off by default; only available while the camera check is on), a face in view with **closed eyes**, or a **head turned well away** from the screen, counts like no one being there: the clock stops, the video pauses and the log says "eyes closed for 20 s" or "looking away for 1 min 15 s". It carries on when she looks back. These have their own wait, 20 seconds by default (10 to 300), longer than the 10 seconds for "no one there", because resting your eyes or glancing aside is more ordinary than leaving.
+
+- **It never tracks where on the screen she looks.** That is too unreliable on a laptop camera, and a notebook would look the same as a phone. Only the eyelids and the head's direction are read.
+- **Looking down at a notebook does not count as closed eyes.** In measurements, looking down at a desk lowered the eyelids as much as really closing them (0.55 against 0.60 on the scale); the head's tip tells them apart (about 24 degrees down against 9). Lowered eyelids with the head tipped down more than 16 degrees are treated as reading or writing. A head tipped down more than 32 degrees (a phone in the lap), turned more than 30 degrees sideways, or tipped up more than 25 degrees counts as looking away.
+- **She is told.** Switching it on shows the notice again, with an extra line saying exactly this.
+- **Quiet for a glance.** The on-screen countdown ("Eyes closed. The clock stops in 12 s") only appears once the trouble has lasted 3 seconds, so a passing glance or a moving head shows nothing.
+- **Limits of the measurement.** The limits come from one person on a MacBook's camera, in normal light. Glasses, a different camera, a different seat or poor light can move the numbers; the limits are in `src/renderer/camera/faceLook.ts` (`DEFAULT_LIMITS`). Someone sleeping with their chin on their chest looks like someone reading, so that is not caught.
 
 #### Trying the camera check
 
@@ -127,7 +137,7 @@ The **Settings** button on the library opens a screen that asks for the exit pas
 
 - **Bring Strudy back to the front when I leave it** (on by default). Turn it off and leaving still pauses the video, stops the clock and is logged; Strudy just does not pull itself back.
 - **"Still studying?" checks.** The shortest and longest gap, in whole minutes of studying (1 to 180). They are saved together, and the shortest cannot be longer than the longest.
-- **Camera check.** Switch it on or off, and set how many seconds no one may be seen before the clock stops (10 to 300).
+- **Camera check.** Switch it on or off, set how many seconds no one may be seen before the clock stops (10 to 300), and switch the eyes-and-head check on or off with its own wait.
 - **Recovery key.** Shows whether one is set and can make a new one (which stops the old one working).
 - **Change the exit password.** It asks for the current password again, and the new one needs at least 6 characters, entered twice.
 
@@ -231,7 +241,7 @@ This is still a deterrent, not a vault: someone with admin rights on the Mac can
 - A plain `kill` (SIGTERM) does not close a locked Strudy either, because Electron answers it by closing the window and the lock refuses. Use Force Quit or `kill -9`.
 - **Lost the password and the recovery key?** That is the last resort: quit Strudy by Force Quit, then delete the `auth` and `recovery` entries in `strudy.json` (or the whole file, which also deletes your history). The next launch asks for a new password and shows a new recovery key.
 - Taking focus back is best effort. There is no kiosk mode (skipped by choice), so `Cmd+Tab` still switches away and Strudy pulls itself back a moment later. The installed app refuses debugging switches; a run from source (`npm run dev`) does not, by design. On Windows the OS may refuse to give focus to a background app and flash its taskbar button instead; that cannot be fixed without native hooks.
-- The camera check cannot tell attention from presence, and a photo or a video of a face held up to the camera can fool it. A face turned away or hidden for longer than the grace period counts as "no one there". Face detection is also less reliable in poor light.
+- The camera check cannot tell attention from presence (the optional eyes-and-head check only catches closed eyes and a turned head, not a mind elsewhere), and a photo or a video of a face held up to the camera can fool it. A face turned away or hidden for longer than the grace period counts as "no one there". Face detection is also less reliable in poor light.
 - Opening a folder does not look inside subfolders.
 - Playback uses Chromium's codecs. Some files (for example certain HEVC or MKV variants) may not play and will show an error instead.
 - Chromium pauses video that has no audio track when the window is hidden. Normal lectures have audio, so this mostly shows up with silent test clips.

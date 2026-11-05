@@ -19,8 +19,8 @@ const EVENT_LABELS: Record<StudyEvent['type'], string> = {
   presence_missed: 'Missed a "Still studying?" check',
   auth_failed: 'Wrong password',
   password_reset: 'Password reset with the recovery key',
-  person_away: 'No one in front of the camera: study clock stopped',
-  person_returned: 'Back in front of the camera',
+  person_away: 'Camera check stopped the study clock',
+  person_returned: 'Back, and the study clock carries on',
   camera_unavailable: 'Camera could not be used: study clock stopped',
 };
 
@@ -89,7 +89,7 @@ export default function Summary() {
             <Stat label="Sessions" value={String(today.sessions)} note="today" />
             {today.personAway > 0 && (
               <Stat
-                label="Away from camera"
+                label="Camera paused the clock"
                 value={String(today.personAway)}
                 note={today.personAway === 1 ? 'time today' : 'times today'}
               />

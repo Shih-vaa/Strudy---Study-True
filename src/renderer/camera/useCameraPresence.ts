@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { play } from '../player/actions';
 import { useSessionStore } from '../state/useSessionStore';
 import { describeCameraError } from './cameraErrors';
-import { hasSeenCameraNotice, markCameraNoticeSeen } from './cameraNotice';
+import { hasSeenCameraNotice, markCameraNoticeSeen, type NoticeLevel } from './cameraNotice';
 import {
   CAMERA_FACE_FRAMES,
   DISABLED_CAMERA,
@@ -12,6 +12,7 @@ import {
   type CameraPhase,
 } from './cameraPresence';
 import type { FaceDetector } from './faceDetector';
+import { lookToSample, type MissingKind } from './faceLook';
 import { loadFaceDetector } from './loadFaceDetector';
 
 /** One look per second is plenty to tell whether someone is there, and is gentle on the battery. */
@@ -31,12 +32,17 @@ export interface CameraUi {
   phase: CameraPhase;
   /** Why the camera is unavailable. */
   reason: string | null;
+  /** Why the latest look did not count: no face, eyes closed, head turned away. Null while attending. */
+  missing: MissingKind | null;
+  /** The owner has the eyes-and-head check on. */
+  attention: boolean;
   /** The live camera, for the always-visible preview. */
   stream: MediaStream | null;
   /** While no one is seen but the grace period has not run out: whole seconds until the clock stops. */
   graceLeft: number | null;
-  /** The configured grace period, for the notice. */
+  /** The configured grace periods, for the notice. */
   graceSeconds: number;
+  attentionGraceSeconds: number;
   /** The one-time "the camera check is on" notice is showing; the camera starts after it is closed. */
   noticeOpen: boolean;
   acknowledgeNotice: () => void;
@@ -45,7 +51,11 @@ export interface CameraUi {
 interface LoadedSettings {
   on: boolean;
   graceSeconds: number;
+  attention: boolean;
+  attentionGraceSeconds: number;
 }
+
+const noticeLevel = (attention: boolean): NoticeLevel => (attention ? 'attention' : 'presence');
 
 /**
  * Runs the camera presence check for the player screen. While Settings has it on, the camera
@@ -59,6 +69,8 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const resumeOnReturn = useRef(false);
+  const settingsRef = useRef<LoadedSettings | null>(null);
+  settingsRef.current = settings;
 
   // 1. Read Settings. The state starts as "starting", which does not count, until this says
   //    whether the check is on at all.
@@ -70,9 +82,15 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
       .then((loaded) => {
         if (cancelled) return;
         const on = loaded.cameraCheck;
-        setSettings({ on, graceSeconds: loaded.cameraGraceSeconds });
+        const attention = loaded.cameraAttention;
+        setSettings({
+          on,
+          graceSeconds: loaded.cameraGraceSeconds,
+          attention,
+          attentionGraceSeconds: loaded.cameraAttentionGraceSeconds,
+        });
         store().setCamera(on ? STARTING_CAMERA : DISABLED_CAMERA);
-        if (on && !hasSeenCameraNotice()) {
+        if (on && !hasSeenCameraNotice(noticeLevel(attention))) {
           setNoticeOpen(true);
           store().setCameraNoticeOpen(true);
         }
@@ -88,7 +106,7 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
   }, []);
 
   const acknowledgeNotice = useCallback(() => {
-    markCameraNoticeSeen();
+    markCameraNoticeSeen(noticeLevel(settingsRef.current?.attention === true));
     setNoticeOpen(false);
     useSessionStore.getState().setCameraNoticeOpen(false);
   }, []);
@@ -96,11 +114,17 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
   // 2. The camera and the detection loop, for as long as the check is on and the notice is closed.
   const on = settings?.on === true;
   const graceSeconds = settings?.graceSeconds ?? 0;
+  const attention = on && settings?.attention === true;
+  const attentionGraceSeconds = settings?.attentionGraceSeconds ?? graceSeconds;
   useEffect(() => {
     if (!on || noticeOpen) return;
 
     const store = useSessionStore.getState;
-    const config: CameraConfig = { graceMs: graceSeconds * 1000, faceFrames: CAMERA_FACE_FRAMES };
+    const config: CameraConfig = {
+      graceMs: graceSeconds * 1000,
+      attentionGraceMs: attentionGraceSeconds * 1000,
+      faceFrames: CAMERA_FACE_FRAMES,
+    };
     let cancelled = false;
     let opened: MediaStream | null = null;
     let detector: FaceDetector | null = null;
@@ -168,7 +192,7 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
       }
       if (!detector) {
         try {
-          const loaded = await loadFaceDetector();
+          const loaded = await loadFaceDetector({ attention });
           if (cancelled) {
             loaded.close();
             return;
@@ -186,9 +210,14 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
       if (looking || !detector || !opened || probe.readyState < 2) return;
       looking = true;
       try {
-        const faceSeen = await detector.hasFace(probe);
+        const look = await detector.look(probe);
         if (!cancelled) {
-          store().applyCamera({ kind: 'sample', faceSeen }, config, performance.now(), Date.now());
+          store().applyCamera(
+            { kind: 'sample', ...lookToSample(look, attention) },
+            config,
+            performance.now(),
+            Date.now(),
+          );
         }
       } catch {
         if (!cancelled) fail('The face detector stopped working.');
@@ -207,7 +236,7 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
       detector?.close();
       release();
     };
-  }, [on, noticeOpen, graceSeconds]);
+  }, [on, noticeOpen, graceSeconds, attention, attentionGraceSeconds]);
 
   // 3. While no one is there the video is paused (so it cannot play on to the end unwatched),
   //    and it carries on by itself when someone is back.
@@ -230,9 +259,12 @@ export function useCameraPresence(video: HTMLVideoElement | null): CameraUi {
     enabled: settings === null ? null : settings.on,
     phase: camera.phase,
     reason: camera.reason,
+    missing: camera.missing,
+    attention,
     stream,
-    graceLeft: graceSecondsLeft(camera, performance.now(), graceSeconds * 1000),
+    graceLeft: graceSecondsLeft(camera, performance.now(), graceSeconds * 1000, attentionGraceSeconds * 1000),
     graceSeconds,
+    attentionGraceSeconds,
     noticeOpen,
     acknowledgeNotice,
   };
