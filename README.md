@@ -78,7 +78,7 @@ Every so often, while you are studying, a box asks **"Still studying? Click to c
 
 ### Camera check (optional)
 
-> **Status:** built and unit-tested, and checked in a real window with a synthetic test-pattern camera (notice, preview, "no one there" bar, paused video, stopped clock, log entries, camera released on leaving, microphone and location refused). **It has not yet been tried with a real camera and a real face**, so treat it as new until you have tried it yourself (see [Trying it](#trying-the-camera-check)). It is off by default.
+> **Status:** built and unit-tested, and checked in a real window with a synthetic test-pattern camera (notice, preview, "no one there" bar, paused video, stopped clock, log entries, camera released on leaving, microphone and location refused). It has been tried with a real face on a MacBook's built-in camera (it counts while you face it, goes "away" after the grace period, and resumes by itself when you are back), but only on that one machine and in normal room light, so try it yourself (see [Trying it](#trying-the-camera-check)) before relying on it. It is off by default.
 
 Without it, someone could start a lecture and walk away; the "Still studying?" checks limit that, but not completely. The camera check closes the gap: **the study clock counts only while someone is in front of the camera.**
 
@@ -251,7 +251,7 @@ This is still a deterrent, not a vault: someone with admin rights on the Mac can
 | 8 | "Still studying?" presence checks | Done |
 | 9 | Session summary, 7-day chart, CSV export | Done |
 | 10 | Packaging (Mac installers) and platform notes | Done (Mac only; no Windows installer for now) |
-| 11 | Optional camera presence check | Built and window-tested with a synthetic camera; not yet tried with a real face |
+| 11 | Optional camera presence check | Done; tried with a real face on one MacBook camera |
 
 **Platform honesty, for the lock to come:** on Windows, Ctrl+Alt+Del and the Windows key cannot be fully blocked without low-level keyboard hooks, which Strudy deliberately does not use. If something cannot be reliably blocked on an OS, this README will say so plainly rather than pretend.
 
